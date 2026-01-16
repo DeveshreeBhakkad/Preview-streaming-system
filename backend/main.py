@@ -1,10 +1,10 @@
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
-import time
 import os
 
-app = FastAPI()
+from backend.stream.buffer_manager import BufferManager
 
+app = FastAPI()
 
 # -----------------------------
 # BASIC HEALTH CHECK (PHASE 2)
@@ -15,56 +15,50 @@ def home():
 
 
 # -----------------------------
-# TEXT STREAMING (PHASE 2)
-# -----------------------------
-def text_stream():
-    """
-    Generator that streams text chunks one by one.
-    Used only to understand streaming behavior.
-    """
-    for i in range(1, 6):
-        time.sleep(1)  # simulate delay
-        yield f"Chunk {i}\n"
-
-
-@app.get("/stream-text")
-def stream_text():
-    """
-    Streams text data gradually to the browser.
-    """
-    return StreamingResponse(
-        text_stream(),
-        media_type="text/plain"
-    )
-
-
-# -----------------------------
-# VIDEO STREAMING (PHASE 3)
+# VIDEO CONFIG
 # -----------------------------
 VIDEO_PATH = "data/sample_video.mp4"
+BYTES_PER_CHUNK = 1024 * 1024  # 1 MB ≈ 30 sec (approx)
 
 
-def video_stream():
+# -----------------------------
+# BUFFER MANAGER INSTANCE
+# -----------------------------
+buffer_manager = BufferManager()
+
+
+# -----------------------------
+# CONTROLLED VIDEO STREAM
+# -----------------------------
+def controlled_video_stream():
     """
-    Generator that reads a video file in binary chunks
-    and streams it without full download.
+    Streams video using backend-controlled chunk buffer
     """
+    buffer_manager.initialize()
+
     with open(VIDEO_PATH, "rb") as video:
         while True:
-            chunk = video.read(1024 * 1024)  # 1 MB chunks
-            if not chunk:
-                break
-            yield chunk
+            active_chunks = buffer_manager.get_active_chunks()
+
+            for chunk_id in active_chunks:
+                start_byte = (chunk_id - 1) * BYTES_PER_CHUNK
+                video.seek(start_byte)
+
+                data = video.read(BYTES_PER_CHUNK)
+                if not data:
+                    return
+
+                yield data
+
+            buffer_manager.slide_forward()
 
 
-@app.get("/video")
-def stream_video():
-    """
-    Streams the video file to the browser.
-    """
+# -----------------------------
+# CONTROLLED STREAM ENDPOINT
+# -----------------------------
+@app.get("/video-controlled")
+def stream_video_controlled():
     return StreamingResponse(
-        video_stream(),
+        controlled_video_stream(),
         media_type="video/mp4"
     )
-
-    
