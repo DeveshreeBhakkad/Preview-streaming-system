@@ -1,4 +1,3 @@
-"""
 def simple_stream():
     yield "Chunk 1"
     yield "Chunk 2"
@@ -28,4 +27,3 @@ def preview():
         yield f"Playing second {sec}"
 
 
-"""
