@@ -6,6 +6,17 @@ from backend.stream.buffer_manager import BufferManager
 
 app = FastAPI()
 
+from fastapi.middleware.cors import CORSMiddleware
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
 # -----------------------------
 # BASIC HEALTH CHECK (PHASE 2)
 # -----------------------------
@@ -17,7 +28,8 @@ def home():
 # -----------------------------
 # VIDEO CONFIG
 # -----------------------------
-VIDEO_PATH = "data/sample_video.mp4"
+VIDEO_PATH = "data/sample_video_frag.mp4"
+
 BYTES_PER_CHUNK = 1024 * 1024  # 1 MB ≈ 30 sec (approx)
 
 
