@@ -14,6 +14,22 @@ to understand real-world video streaming systems.
 The backend now controls which video chunks exist using a sliding window buffer.
 Old chunks are deleted automatically, naturally limiting rewind.
 
+## Phase 4 — Backend-Controlled Streaming
+
+In this phase, the backend controls video streaming using a sliding window buffer instead of relying on the browser’s default buffering.
+
+### Key Features
+- Time-based chunk streaming
+- Sliding window buffer (limited rewind + forward prefetch)
+- Old chunks deleted from backend memory
+- MediaSource API used to append chunks manually
+
+### Design Note
+This phase intentionally uses raw chunk streaming to demonstrate backend buffer control. Full playback requires timestamped media segments (HLS/DASH), which is planned as a future extension.
+
+### Outcome
+Phase 4 focuses on system design and buffering control rather than full media playback.
+
 ## Design Note
 
 The current implementation focuses on backend-controlled streaming logic.
