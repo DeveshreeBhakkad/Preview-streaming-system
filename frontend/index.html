@@ -1,15 +1,27 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>InstantStream Preview</title>
+  <meta charset="UTF-8" />
+  <title>Preview Streaming System</title>
+
+  <link rel="stylesheet" href="styles.css" />
+
+  <!-- HLS.js CDN -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
 
-    <h2>InstantStream – Controlled Preview</h2>
+  <div class="app">
+    <h1>Preview Streaming System</h1>
+    <p class="subtitle">HLS-based full playback</p>
 
-    <video id="videoPlayer" controls width="640"></video>
+    <div class="video-container">
+      <video id="video" controls></video>
+    </div>
 
-    <script src="player.js"></script>
+    <div id="status" class="status">Initializing player…</div>
+  </div>
+
+  <script src="player.js"></script>
 </body>
 </html>

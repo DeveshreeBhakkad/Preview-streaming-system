@@ -1,10 +1,20 @@
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
+from fastapi.staticfiles import StaticFiles
 import os
 
 from backend.stream.buffer_manager import BufferManager
 
 app = FastAPI()
+
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+HLS_DIR = os.path.join(BASE_DIR, "data", "hls")
+
+app.mount(
+    "/hls",
+    StaticFiles(directory=HLS_DIR),
+    name="hls"
+)
 
 from fastapi.middleware.cors import CORSMiddleware
 
@@ -24,6 +34,15 @@ app.add_middleware(
 def home():
     return {"status": "Backend is running"}
 
+from backend.stream.buffer_manager import BufferManager
+
+@app.get("/debug-buffer")
+def debug_buffer():
+    bm = BufferManager()
+    bm.initialize()
+    return {
+        "active_chunks": bm.get_active_chunks()
+    }
 
 # -----------------------------
 # VIDEO CONFIG

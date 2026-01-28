@@ -1,43 +1,56 @@
-const video = document.getElementById("videoPlayer");
+const video = document.getElementById("video");
+const statusText = document.getElementById("status");
 
-const mediaSource = new MediaSource();
-video.src = URL.createObjectURL(mediaSource);
+// Backend HLS playlist
+const HLS_URL = "http://127.0.0.1:8000/hls/playlist.m3u8";
 
-mediaSource.addEventListener("sourceopen", async () => {
-    const mimeCodec = 'video/mp4; codecs="avc1.42E01E, mp4a.40.2"';
+function setStatus(msg) {
+  statusText.textContent = msg;
+}
 
-    if (!MediaSource.isTypeSupported(mimeCodec)) {
-        console.error("Codec not supported:", mimeCodec);
-        return;
+if (Hls.isSupported()) {
+  const hls = new Hls({
+    enableWorker: true,
+    lowLatencyMode: false,
+  });
+
+  setStatus("Loading HLS stream…");
+
+  hls.loadSource(HLS_URL);
+  hls.attachMedia(video);
+
+  hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    setStatus("Stream ready — press play");
+  });
+
+  hls.on(Hls.Events.ERROR, (event, data) => {
+    console.error("HLS error:", data);
+
+    if (data.fatal) {
+      switch (data.type) {
+        case Hls.ErrorTypes.NETWORK_ERROR:
+          setStatus("Network error — retrying…");
+          hls.startLoad();
+          break;
+
+        case Hls.ErrorTypes.MEDIA_ERROR:
+          setStatus("Media error — attempting recovery…");
+          hls.recoverMediaError();
+          break;
+
+        default:
+          setStatus("Fatal error — reload page");
+          hls.destroy();
+          break;
+      }
     }
+  });
 
-    const sourceBuffer = mediaSource.addSourceBuffer(mimeCodec);
+} else if (video.canPlayType("application/vnd.apple.mpegurl")) {
+  // Safari fallback
+  video.src = HLS_URL;
+  setStatus("Native HLS support detected");
 
-    try {
-        const response = await fetch("http://127.0.0.1:8000/video-controlled");
-        const reader = response.body.getReader();
-
-        while (true) {
-            const { value, done } = await reader.read();
-            if (done) {
-                mediaSource.endOfStream();
-                break;
-            }
-
-            await waitForSourceBuffer(sourceBuffer);
-            sourceBuffer.appendBuffer(value);
-        }
-    } catch (err) {
-        console.error("Streaming error:", err);
-    }
-});
-
-function waitForSourceBuffer(sourceBuffer) {
-    return new Promise(resolve => {
-        if (!sourceBuffer.updating) {
-            resolve();
-        } else {
-            sourceBuffer.addEventListener("updateend", resolve, { once: true });
-        }
-    });
+} else {
+  setStatus("HLS not supported in this browser");
 }
