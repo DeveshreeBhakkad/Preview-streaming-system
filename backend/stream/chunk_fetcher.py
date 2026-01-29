@@ -2,30 +2,31 @@ import requests
 
 
 class ChunkFetcher:
-    def __init__(self, source_url: str, bytes_per_chunk: int):
-        self.source_url = source_url
-        self.bytes_per_chunk = bytes_per_chunk
+    def __init__(self, video_url: str, chunk_size: int):
+        self.video_url = video_url
+        self.chunk_size = chunk_size
 
-    def fetch_chunk(self, chunk_id: int) -> bytes | None:
+    def fetch_chunk(self, chunk_id: int) -> bytes:
         """
-        Fetch a single chunk from remote URL using HTTP Range
+        Fetch a specific chunk using HTTP Range requests
         """
-        start_byte = (chunk_id - 1) * self.bytes_per_chunk
-        end_byte = start_byte + self.bytes_per_chunk - 1
+        start = (chunk_id - 1) * self.chunk_size
+        end = start + self.chunk_size - 1
 
         headers = {
-            "Range": f"bytes={start_byte}-{end_byte}"
+            "Range": f"bytes={start}-{end}"
         }
 
         response = requests.get(
-            self.source_url,
+            self.video_url,
             headers=headers,
             stream=True,
             timeout=10
         )
 
-        # 206 = Partial Content (expected)
         if response.status_code not in (200, 206):
-            return None
+            raise RuntimeError(
+                f"Failed to fetch chunk {chunk_id}, status={response.status_code}"
+            )
 
         return response.content

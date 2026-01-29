@@ -1,25 +1,27 @@
-from fastapi import Query, HTTPException
-from backend.stream.stream_controller import StreamController
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, HTTPException
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
-import os
+from fastapi.middleware.cors import CORSMiddleware
 
+from backend.stream.stream_controller import StreamController
 from backend.stream.buffer_manager import BufferManager
+
+import os
 
 app = FastAPI()
 
+# -----------------------------
+# STATIC FILES (HLS - optional)
+# -----------------------------
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 HLS_DIR = os.path.join(BASE_DIR, "data", "hls")
 
-app.mount(
-    "/hls",
-    StaticFiles(directory=HLS_DIR),
-    name="hls"
-)
+if os.path.exists(HLS_DIR):
+    app.mount("/hls", StaticFiles(directory=HLS_DIR), name="hls")
 
-from fastapi.middleware.cors import CORSMiddleware
-
+# -----------------------------
+# CORS
+# -----------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -28,89 +30,39 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 # -----------------------------
-# BASIC HEALTH CHECK (PHASE 2)
+# HEALTH CHECK
 # -----------------------------
 @app.get("/")
 def home():
     return {"status": "Backend is running"}
 
-from backend.stream.buffer_manager import BufferManager
-
+# -----------------------------
+# DEBUG BUFFER (DEV ONLY)
+# -----------------------------
 @app.get("/debug-buffer")
 def debug_buffer():
     bm = BufferManager()
     bm.initialize()
-    return {
-        "active_chunks": bm.get_active_chunks()
-    }
+    return {"active_chunks": bm.get_active_chunks()}
 
 # -----------------------------
-# VIDEO CONFIG
+# PREVIEW STREAM (CORE API)
 # -----------------------------
-VIDEO_PATH = "data/sample_video_frag.mp4"
-
-# -----------------------------
-# PREVIEW STREAM CONFIG
-# -----------------------------
-BYTES_PER_CHUNK = 1024 * 1024  # 1 MB ≈ ~20–30 sec
-
-# -----------------------------
-# BUFFER MANAGER INSTANCE
-# -----------------------------
-buffer_manager = BufferManager()
+CHUNK_SIZE = 1024 * 1024  # 1 MB per chunk
 
 
-# -----------------------------
-# CONTROLLED VIDEO STREAM
-# -----------------------------
-def controlled_video_stream():
-    """
-    Streams video using backend-controlled chunk buffer
-    """
-    buffer_manager.initialize()
+@app.post("/start-preview")
+async def start_preview(request: Request):
+    body = await request.json()
+    video_url = body.get("url")
 
-    with open(VIDEO_PATH, "rb") as video:
-        while True:
-            active_chunks = buffer_manager.get_active_chunks()
-
-            for chunk_id in active_chunks:
-                start_byte = (chunk_id - 1) * BYTES_PER_CHUNK
-                video.seek(start_byte)
-
-                data = video.read(BYTES_PER_CHUNK)
-                if not data:
-                    return
-
-                yield data
-
-            buffer_manager.slide_forward()
-
-
-# -----------------------------
-# CONTROLLED STREAM ENDPOINT
-# -----------------------------
-@app.get("/video-controlled")
-def stream_video_controlled():
-    return StreamingResponse(
-        controlled_video_stream(),
-        media_type="video/mp4"
-    )
-
-# -----------------------------
-# URL-BASED PREVIEW STREAM
-# -----------------------------
-@app.get("/preview-stream")
-def preview_stream(
-    source_url: str = Query(..., description="Direct downloadable video URL")
-):
-    if not source_url.startswith("http"):
-        raise HTTPException(status_code=400, detail="Invalid source URL")
+    if not video_url or not video_url.startswith("http"):
+        raise HTTPException(status_code=400, detail="Invalid or missing video URL")
 
     controller = StreamController(
-        source_url=source_url,
-        bytes_per_chunk=BYTES_PER_CHUNK
+        video_url=video_url,
+        chunk_size=CHUNK_SIZE
     )
 
     return StreamingResponse(

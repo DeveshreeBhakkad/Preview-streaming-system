@@ -1,21 +1,15 @@
-from backend.stream.buffer_manager import BufferManager
 from backend.stream.chunk_fetcher import ChunkFetcher
+from backend.stream.buffer_manager import BufferManager
 
 
 class StreamController:
-    def __init__(self, source_url: str, bytes_per_chunk: int):
-        self.source_url = source_url
-        self.bytes_per_chunk = bytes_per_chunk
-
+    def __init__(self, video_url: str, chunk_size: int):
         self.buffer_manager = BufferManager()
-        self.chunk_fetcher = ChunkFetcher(
-            source_url=source_url,
-            bytes_per_chunk=bytes_per_chunk
-        )
+        self.fetcher = ChunkFetcher(video_url, chunk_size)
 
     def stream(self):
         """
-        Generator that yields video chunks based on buffer rules
+        Generator yielding video chunks based on buffer rules
         """
         self.buffer_manager.initialize()
 
@@ -23,10 +17,14 @@ class StreamController:
             active_chunks = self.buffer_manager.get_active_chunks()
 
             for chunk_id in active_chunks:
-                data = self.chunk_fetcher.fetch_chunk(chunk_id)
+                try:
+                    data = self.fetcher.fetch_chunk(chunk_id)
+                except Exception as e:
+                    print(f"[StreamController] {e}")
+                    return
 
                 if not data:
-                    return  # End of stream or error
+                    return
 
                 yield data
 
