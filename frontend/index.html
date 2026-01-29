@@ -2,25 +2,50 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Preview Streaming System</title>
+  <title>Previewly 🎥</title>
 
   <link rel="stylesheet" href="styles.css" />
-
-  <!-- HLS.js CDN -->
-  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 </head>
 <body>
 
-  <div class="app">
-    <h1>Preview Streaming System</h1>
-    <p class="subtitle">HLS-based full playback</p>
+  <!-- HERO SECTION -->
+  <section id="hero" class="hero">
+    <h1 class="title"><strong>Previewly 🎥</strong></h1>
 
-    <div class="video-container">
-      <video id="video" controls></video>
+    <p class="subtitle">
+      <strong>Preview before you commit ✨</strong>
+    </p>
+
+    <p class="summary">
+      Instantly watch downloadable movies & videos — without saving them.<br />
+      Controlled rewind · Smart buffering · Network-aware streaming 🧠⚡
+    </p>
+
+    <div class="input-box">
+      <input
+        id="videoLink"
+        type="text"
+        placeholder="🔗 Paste downloadable movie / video link here…"
+      />
+      <button id="startBtn">Start Preview ▶</button>
     </div>
 
-    <div id="status" class="status">Initializing player…</div>
-  </div>
+    <div class="features">
+      <span>⏪ Limited rewind</span>
+      <span>⚡ Smart buffering</span>
+      <span>🧠 ML-driven</span>
+    </div>
+  </section>
+
+  <!-- FULLSCREEN PLAYER -->
+  <section id="playerOverlay" class="player-overlay hidden">
+    <video id="video" autoplay></video>
+
+    <div class="overlay-ui">
+      <span id="status">Starting preview…</span>
+      <button id="exitBtn">✕ Exit</button>
+    </div>
+  </section>
 
   <script src="player.js"></script>
 </body>

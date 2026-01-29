@@ -1,56 +1,49 @@
+const hero = document.getElementById("hero");
+const overlay = document.getElementById("playerOverlay");
 const video = document.getElementById("video");
+
+const startBtn = document.getElementById("startBtn");
+const exitBtn = document.getElementById("exitBtn");
 const statusText = document.getElementById("status");
+const linkInput = document.getElementById("videoLink");
 
-// Backend HLS playlist
-const HLS_URL = "http://127.0.0.1:8000/hls/playlist.m3u8";
+startBtn.addEventListener("click", () => {
+  const url = linkInput.value.trim();
 
-function setStatus(msg) {
-  statusText.textContent = msg;
-}
+  if (!url) {
+    alert("Please paste a video link first.");
+    return;
+  }
 
-if (Hls.isSupported()) {
-  const hls = new Hls({
-    enableWorker: true,
-    lowLatencyMode: false,
-  });
+  /* Hero exit animation */
+  hero.style.opacity = "0";
+  hero.style.transform = "translateY(20px) scale(0.97)";
 
-  setStatus("Loading HLS stream…");
+  setTimeout(() => {
+    hero.classList.add("hidden");
 
-  hls.loadSource(HLS_URL);
-  hls.attachMedia(video);
+    overlay.classList.remove("hidden");
+    requestAnimationFrame(() => {
+      overlay.style.opacity = "1";
+    });
 
-  hls.on(Hls.Events.MANIFEST_PARSED, () => {
-    setStatus("Stream ready — press play");
-  });
+    statusText.textContent = "Preview playing…";
+    video.controls = false;   // important for later rewind control
+    video.src = url;
+  }, 450);
+});
 
-  hls.on(Hls.Events.ERROR, (event, data) => {
-    console.error("HLS error:", data);
+exitBtn.addEventListener("click", () => {
+  video.pause();
+  video.src = "";
 
-    if (data.fatal) {
-      switch (data.type) {
-        case Hls.ErrorTypes.NETWORK_ERROR:
-          setStatus("Network error — retrying…");
-          hls.startLoad();
-          break;
+  overlay.style.opacity = "0";
 
-        case Hls.ErrorTypes.MEDIA_ERROR:
-          setStatus("Media error — attempting recovery…");
-          hls.recoverMediaError();
-          break;
+  setTimeout(() => {
+    overlay.classList.add("hidden");
 
-        default:
-          setStatus("Fatal error — reload page");
-          hls.destroy();
-          break;
-      }
-    }
-  });
-
-} else if (video.canPlayType("application/vnd.apple.mpegurl")) {
-  // Safari fallback
-  video.src = HLS_URL;
-  setStatus("Native HLS support detected");
-
-} else {
-  setStatus("HLS not supported in this browser");
-}
+    hero.classList.remove("hidden");
+    hero.style.opacity = "1";
+    hero.style.transform = "none";
+  }, 450);
+});
