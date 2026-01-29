@@ -2,50 +2,46 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Previewly 🎥</title>
-
+  <title>Previewly 🎬</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <!-- HERO SECTION -->
-  <section id="hero" class="hero">
-    <h1 class="title"><strong>Previewly 🎥</strong></h1>
+  <!-- LANDING -->
+  <div id="landing" class="screen active">
+    <div class="card">
+      <h1>Previewly 🎬</h1>
+      <p class="subtitle">
+        Instant video previews · No full downloads · Smart buffering ✨
+      </p>
 
-    <p class="subtitle">
-      <strong>Preview before you commit ✨</strong>
-    </p>
-
-    <p class="summary">
-      Instantly watch downloadable movies & videos — without saving them.<br />
-      Controlled rewind · Smart buffering · Network-aware streaming 🧠⚡
-    </p>
-
-    <div class="input-box">
       <input
-        id="videoLink"
+        id="videoUrl"
         type="text"
-        placeholder="🔗 Paste downloadable movie / video link here…"
+        placeholder="Paste a direct .mp4 video link"
       />
-      <button id="startBtn">Start Preview ▶</button>
+
+      <button id="startPreview">Start Preview</button>
+
+      <p class="hint">
+        Preview mode • Limited rewind • Adaptive buffering
+      </p>
+    </div>
+  </div>
+
+  <!-- PLAYER -->
+  <div id="playerScreen" class="screen">
+    <div class="player-header">
+      <span class="badge">PREVIEW MODE</span>
+      <button id="backBtn">← Change Video</button>
     </div>
 
-    <div class="features">
-      <span>⏪ Limited rewind</span>
-      <span>⚡ Smart buffering</span>
-      <span>🧠 ML-driven</span>
-    </div>
-  </section>
+    <video id="video" controls autoplay></video>
 
-  <!-- FULLSCREEN PLAYER -->
-  <section id="playerOverlay" class="player-overlay hidden">
-    <video id="video" autoplay></video>
-
-    <div class="overlay-ui">
-      <span id="status">Starting preview…</span>
-      <button id="exitBtn">✕ Exit</button>
+    <div id="status" class="status">
+      Streaming preview…
     </div>
-  </section>
+  </div>
 
   <script src="player.js"></script>
 </body>
