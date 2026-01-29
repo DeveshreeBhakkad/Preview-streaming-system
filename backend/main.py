@@ -1,3 +1,5 @@
+from fastapi import Query, HTTPException
+from backend.stream.stream_controller import StreamController
 from fastapi import FastAPI
 from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
@@ -49,8 +51,10 @@ def debug_buffer():
 # -----------------------------
 VIDEO_PATH = "data/sample_video_frag.mp4"
 
-BYTES_PER_CHUNK = 1024 * 1024  # 1 MB ≈ 30 sec (approx)
-
+# -----------------------------
+# PREVIEW STREAM CONFIG
+# -----------------------------
+BYTES_PER_CHUNK = 1024 * 1024  # 1 MB ≈ ~20–30 sec
 
 # -----------------------------
 # BUFFER MANAGER INSTANCE
@@ -91,5 +95,25 @@ def controlled_video_stream():
 def stream_video_controlled():
     return StreamingResponse(
         controlled_video_stream(),
+        media_type="video/mp4"
+    )
+
+# -----------------------------
+# URL-BASED PREVIEW STREAM
+# -----------------------------
+@app.get("/preview-stream")
+def preview_stream(
+    source_url: str = Query(..., description="Direct downloadable video URL")
+):
+    if not source_url.startswith("http"):
+        raise HTTPException(status_code=400, detail="Invalid source URL")
+
+    controller = StreamController(
+        source_url=source_url,
+        bytes_per_chunk=BYTES_PER_CHUNK
+    )
+
+    return StreamingResponse(
+        controller.stream(),
         media_type="video/mp4"
     )
