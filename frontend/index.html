@@ -2,45 +2,35 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Previewly 🎬</title>
+  <title>Previewly ⚡ Instant Video Preview</title>
+
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 
-  <!-- LANDING -->
-  <div id="landing" class="screen active">
-    <div class="card">
-      <h1>Previewly 🎬</h1>
-      <p class="subtitle">
-        Instant video previews · No full downloads · Smart buffering ✨
-      </p>
+  <div class="app">
+    <h1 class="title">Previewly ⚡</h1>
+    <p class="subtitle">
+      Instantly preview large videos without downloading 🚀  
+      <br />
+      <span>Smart buffering · Limited rewind · ML-assisted streaming</span>
+    </p>
 
+    <div class="input-box">
       <input
         id="videoUrl"
         type="text"
-        placeholder="Paste a direct .mp4 video link"
+        placeholder="Paste a direct downloadable video link (.mp4)"
       />
-
-      <button id="startPreview">Start Preview</button>
-
-      <p class="hint">
-        Preview mode • Limited rewind • Adaptive buffering
-      </p>
-    </div>
-  </div>
-
-  <!-- PLAYER -->
-  <div id="playerScreen" class="screen">
-    <div class="player-header">
-      <span class="badge">PREVIEW MODE</span>
-      <button id="backBtn">← Change Video</button>
+      <button id="startBtn">Preview Instantly</button>
     </div>
 
-    <video id="video" controls autoplay></video>
-
-    <div id="status" class="status">
-      Streaming preview…
+    <div class="video-wrapper hidden" id="videoWrapper">
+      <video id="video" controls autoplay></video>
+      <div class="preview-badge">PREVIEW MODE</div>
     </div>
+
+    <div id="status" class="status"></div>
   </div>
 
   <script src="player.js"></script>

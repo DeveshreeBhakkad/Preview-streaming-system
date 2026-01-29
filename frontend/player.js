@@ -1,42 +1,29 @@
-const landing = document.getElementById("landing");
-const playerScreen = document.getElementById("playerScreen");
-
-const startBtn = document.getElementById("startPreview");
-const backBtn = document.getElementById("backBtn");
-
-const videoInput = document.getElementById("videoUrl");
 const video = document.getElementById("video");
+const startBtn = document.getElementById("startBtn");
+const urlInput = document.getElementById("videoUrl");
 const statusText = document.getElementById("status");
+const wrapper = document.getElementById("videoWrapper");
 
-function showPlayer(url) {
-  landing.classList.remove("active");
-  playerScreen.classList.add("active");
+const BACKEND_BASE = "http://127.0.0.1:8000";
 
-  const streamUrl =
-    `http://127.0.0.1:8000/preview-stream?source_url=${encodeURIComponent(url)}`;
-
-  video.src = streamUrl;
-  statusText.textContent = "Streaming preview…";
+function setStatus(msg) {
+  statusText.textContent = msg;
 }
 
-function showLanding() {
-  video.pause();
-  video.removeAttribute("src");
-  video.load();
+startBtn.addEventListener("click", async () => {
+  const url = urlInput.value.trim();
 
-  playerScreen.classList.remove("active");
-  landing.classList.add("active");
-}
-
-startBtn.addEventListener("click", () => {
-  const url = videoInput.value.trim();
-
-  if (!url.startsWith("http")) {
-    alert("Please enter a valid direct video URL");
+  if (!url) {
+    setStatus("Please paste a valid video URL");
     return;
   }
 
-  showPlayer(url);
-});
+  setStatus("Initializing preview…");
+  wrapper.classList.remove("hidden");
 
-backBtn.addEventListener("click", showLanding);
+  // Directly assign streaming endpoint
+  video.src = `${BACKEND_BASE}/start-preview?url=${encodeURIComponent(url)}`;
+  video.load();
+
+  setStatus("Preview streaming started ⚡");
+});

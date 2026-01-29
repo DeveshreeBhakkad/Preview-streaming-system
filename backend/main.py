@@ -52,16 +52,15 @@ def debug_buffer():
 CHUNK_SIZE = 1024 * 1024  # 1 MB per chunk
 
 
-@app.post("/start-preview")
-async def start_preview(request: Request):
-    body = await request.json()
-    video_url = body.get("url")
+from fastapi import Query
 
-    if not video_url or not video_url.startswith("http"):
-        raise HTTPException(status_code=400, detail="Invalid or missing video URL")
+@app.get("/start-preview")
+def start_preview(url: str = Query(...)):
+    if not url.startswith("http"):
+        raise HTTPException(status_code=400, detail="Invalid video URL")
 
     controller = StreamController(
-        video_url=video_url,
+        video_url=url,
         chunk_size=CHUNK_SIZE
     )
 
