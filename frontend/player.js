@@ -1,10 +1,8 @@
-const video = document.getElementById("video");
+const urlInput = document.getElementById("urlInput");
 const startBtn = document.getElementById("startBtn");
-const urlInput = document.getElementById("videoUrl");
-const statusText = document.getElementById("status");
+const video = document.getElementById("video");
 const wrapper = document.getElementById("videoWrapper");
-
-const BACKEND_BASE = "http://127.0.0.1:8000";
+const statusText = document.getElementById("status");
 
 function setStatus(msg) {
   statusText.textContent = msg;
@@ -12,18 +10,36 @@ function setStatus(msg) {
 
 startBtn.addEventListener("click", async () => {
   const url = urlInput.value.trim();
+  if (!url) return;
 
-  if (!url) {
-    setStatus("Please paste a valid video URL");
+  setStatus("Preparing instant preview…");
+
+  const res = await fetch("http://127.0.0.1:8000/start-hls-preview", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ url })
+  });
+
+  const data = await res.json();
+
+  if (!data.playlist_url) {
+    setStatus("Failed to load preview");
     return;
   }
 
-  setStatus("Initializing preview…");
   wrapper.classList.remove("hidden");
 
-  // Directly assign streaming endpoint
-  video.src = `${BACKEND_BASE}/start-preview?url=${encodeURIComponent(url)}`;
-  video.load();
+  if (Hls.isSupported()) {
+    const hls = new Hls();
+    hls.loadSource(data.playlist_url);
+    hls.attachMedia(video);
 
-  setStatus("Preview streaming started ⚡");
+    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+      video.play();
+      setStatus("Streaming preview ⚡");
+    });
+  } else {
+    video.src = data.playlist_url;
+    video.play();
+  }
 });
