@@ -1,35 +1,95 @@
-## Project Status
+📽️ Previewly ⚡
 
-This project is being developed incrementally as a personal portfolio project
-to understand real-world video streaming systems.
+Instant Video Preview System (Backend-Controlled Streaming)
 
-### Completed Phases
-- Phase 1: Python streaming fundamentals (generators)
-- Phase 2: FastAPI streaming responses
-- Phase 3: Video streaming from backend
-- Phase 4.1: Conceptual buffer model (sliding window)
-- Phase 4.2: Buffer logic simulation using deque
-- Phase 4.3: Backend-controlled chunk streaming with limited rewind
-- Phase 4.4: MediaSource-based controlled streaming (conceptual)
+Previewly is a backend-driven video preview platform that allows users to instantly preview large downloadable videos without waiting for full downloads.
 
-The backend controls which video chunks exist using a sliding window buffer.
-Old chunks are deleted automatically, naturally limiting rewind.
+The system focuses on how real streaming platforms work internally — buffering, chunking, adaptive logic, and controlled playback — rather than just playing a video.
 
----
+🚀 Key Highlights
 
-## Phase 4 — Backend-Controlled Streaming
+🔗 Paste any direct downloadable video URL
 
-In this phase, the backend controls video streaming using a sliding window buffer instead of relying on the browser’s default buffering.
+⚡ Start watching immediately
 
-### Key Features
-- Time-based chunk streaming
-- Sliding window buffer (limited rewind + forward prefetch)
-- Old chunks deleted from backend memory
-- MediaSource API used for manual chunk appending
+⏪ Limited rewind using backend-controlled buffer window
 
-### Design Note
-This phase intentionally uses raw chunk streaming to demonstrate backend buffer control.
-Full playback requires timestamped media segments (e.g., HLS/DASH), which are planned as a future extension.
+🧠 ML-assisted adaptive buffering based on network conditions
 
-### Outcome
-Phase 4 focuses on system design and buffering control rather than full media playback.
+📦 Backend decides which chunks exist (not the browser)
+
+🌐 HLS-based streaming for full playback support
+
+🧠 System Architecture (High Level)
+
+Frontend: HTML, CSS, JS, HLS.js
+
+Backend: FastAPI
+
+Streaming Logic:
+
+Chunk-based streaming
+
+Sliding window buffer
+
+ML-driven forward buffer prediction
+
+Media Format: HLS (.m3u8 + .ts segments)
+
+🛠️ Project Status
+
+This project is being developed incrementally as a portfolio-grade system to understand real-world streaming architectures.
+
+Completed
+
+Backend-controlled chunk streaming
+
+Sliding window buffer (limited rewind)
+
+ML-based adaptive forward buffering
+
+HLS generation & playback
+
+Remote URL preview streaming
+
+Preview-focused UI (Preview Mode)
+
+In Progress
+
+Strict rewind enforcement at player level
+
+Session-based preview isolation
+
+Network-aware chunk throttling
+
+UI polish & transitions
+
+⚠️ Note on Media Files
+
+Sample media files are used only for local testing.
+They are not part of the core system and may be removed or replaced in future commits.
+
+🎯 Why This Project?
+
+Most video players rely entirely on the browser.
+Previewly demonstrates how streaming platforms control playback from the backend, which is critical for:
+
+Previews
+
+Paywalls
+
+DRM-like behavior
+
+Bandwidth control
+
+Cost optimization
+
+🧪 Intended Use
+
+Learning distributed streaming systems
+
+Demonstrating backend + ML integration
+
+Recruiter-facing portfolio project
+
+💡 This project prioritizes system design, control, and architecture over simple video playback.
