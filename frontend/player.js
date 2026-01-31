@@ -1,45 +1,74 @@
-const urlInput = document.getElementById("urlInput");
-const startBtn = document.getElementById("startBtn");
-const video = document.getElementById("video");
-const wrapper = document.getElementById("videoWrapper");
-const statusText = document.getElementById("status");
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("player.js loaded");
 
-function setStatus(msg) {
-  statusText.textContent = msg;
-}
+  const urlInput = document.getElementById("urlInput");
+  const startBtn = document.getElementById("startBtn");
+  const video = document.getElementById("video");
+  const wrapper = document.getElementById("videoWrapper");
+  const statusText = document.getElementById("status");
 
-startBtn.addEventListener("click", async () => {
-  const url = urlInput.value.trim();
-  if (!url) return;
+  function setStatus(msg) {
+    statusText.textContent = msg;
+  }
 
-  setStatus("Preparing instant preview…");
-
-  const res = await fetch("http://127.0.0.1:8000/start-hls-preview", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ url })
-  });
-
-  const data = await res.json();
-
-  if (!data.playlist_url) {
-    setStatus("Failed to load preview");
+  if (!urlInput) {
+    console.error("❌ Input with id='urlInput' not found");
+    setStatus("Internal UI error: input not found");
     return;
   }
 
-  wrapper.classList.remove("hidden");
+  if (!startBtn) {
+    console.error("❌ Button with id='startBtn' not found");
+    setStatus("Internal UI error: button not found");
+    return;
+  }
 
-  if (Hls.isSupported()) {
-    const hls = new Hls();
-    hls.loadSource(data.playlist_url);
-    hls.attachMedia(video);
+  startBtn.addEventListener("click", async () => {
+    console.log("Preview button clicked");
 
-    hls.on(Hls.Events.MANIFEST_PARSED, () => {
+    const url = urlInput.value?.trim();
+    if (!url) {
+      setStatus("Please paste a video URL");
+      return;
+    }
+
+    setStatus("Preparing instant preview…");
+
+    let res;
+    try {
+      res = await fetch("http://127.0.0.1:8000/start-hls-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ url })
+      });
+    } catch (err) {
+      console.error(err);
+      setStatus("Backend not reachable");
+      return;
+    }
+
+    const data = await res.json();
+
+    if (!data.playlist_url) {
+      setStatus("Failed to load preview");
+      return;
+    }
+
+    wrapper.classList.remove("hidden");
+
+    if (window.Hls && Hls.isSupported()) {
+      const hls = new Hls();
+      hls.loadSource(data.playlist_url);
+      hls.attachMedia(video);
+
+      hls.on(Hls.Events.MANIFEST_PARSED, () => {
+        video.play();
+        setStatus("Streaming preview ⚡");
+      });
+    } else {
+      video.src = data.playlist_url;
       video.play();
       setStatus("Streaming preview ⚡");
-    });
-  } else {
-    video.src = data.playlist_url;
-    video.play();
-  }
+    }
+  });
 });
