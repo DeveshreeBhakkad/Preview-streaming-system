@@ -17,47 +17,34 @@ The system focuses on how real streaming platforms work internally — buffering
 - 🧠 System Architecture (High Level)
 
 ## Tech 
-Frontend: HTML, CSS, JS, HLS.js
 
-Backend: FastAPI
-
-Streaming Logic:
-
-Chunk-based streaming
-
-Sliding window buffer
-
-ML-driven forward buffer prediction
-
-Media Format: HLS (.m3u8 + .ts segments)
+- Frontend: HTML, CSS, JS, HLS.js
+- Backend: FastAPI
+- Streaming Logic:
+ - Chunk-based streaming
+ - Sliding window buffer
+ - ML-driven forward buffer prediction
+- Media Format: HLS (.m3u8 + .ts segments)
 
 ## 🛠️ Project Status
 
 This project is being developed incrementally as a portfolio-grade system to understand real-world streaming architectures.
 
-Completed
+## Completed
 
-Backend-controlled chunk streaming
+- Backend-controlled chunk streaming
+- Sliding window buffer (limited rewind)
+- ML-based adaptive forward buffering
+- HLS generation & playback
+- Remote URL preview streaming
+- Preview-focused UI (Preview Mode)
 
-Sliding window buffer (limited rewind)
+## In Progress
 
-ML-based adaptive forward buffering
-
-HLS generation & playback
-
-Remote URL preview streaming
-
-Preview-focused UI (Preview Mode)
-
-In Progress
-
-Strict rewind enforcement at player level
-
-Session-based preview isolation
-
-Network-aware chunk throttling
-
-UI polish & transitions
+- Strict rewind enforcement at player level
+- Session-based preview isolation
+- Network-aware chunk throttling
+- UI polish & transitions
 
 ## ⚠️ Note on Media Files
 
@@ -68,16 +55,11 @@ They are not part of the core system and may be removed or replaced in future co
 
 Most video players rely entirely on the browser.
 Previewly demonstrates how streaming platforms control playback from the backend, which is critical for:
-
-Previews
-
-Paywalls
-
-DRM-like behavior
-
-Bandwidth control
-
-Cost optimization
+  - Previews
+  - Paywalls
+  - DRM-like behavior
+  - Bandwidth control
+  - Cost optimization
 
 ## 🧪 Intended Use
 
