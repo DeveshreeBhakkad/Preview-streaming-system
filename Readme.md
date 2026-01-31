@@ -8,20 +8,15 @@ The system focuses on how real streaming platforms work internally — buffering
 
 ## 🚀 Key Highlights
 
-🔗 Paste any direct downloadable video URL
+- 🔗 Paste any direct downloadable video URL
+- ⚡ Start watching immediately
+- ⏪ Limited rewind using backend-controlled buffer window
+- 🧠 ML-assisted adaptive buffering based on network conditions
+- 📦 Backend decides which chunks exist (not the browser)
+- 🌐 HLS-based streaming for full playback support
+- 🧠 System Architecture (High Level)
 
-⚡ Start watching immediately
-
-⏪ Limited rewind using backend-controlled buffer window
-
-🧠 ML-assisted adaptive buffering based on network conditions
-
-📦 Backend decides which chunks exist (not the browser)
-
-🌐 HLS-based streaming for full playback support
-
-🧠 System Architecture (High Level)
-
+## Tech 
 Frontend: HTML, CSS, JS, HLS.js
 
 Backend: FastAPI
