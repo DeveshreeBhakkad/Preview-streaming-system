@@ -1,4 +1,4 @@
-📽️ Previewly ⚡
+## 📽️ Previewly ⚡
 
 Instant Video Preview System (Backend-Controlled Streaming)
 
@@ -6,7 +6,7 @@ Previewly is a backend-driven video preview platform that allows users to instan
 
 The system focuses on how real streaming platforms work internally — buffering, chunking, adaptive logic, and controlled playback — rather than just playing a video.
 
-🚀 Key Highlights
+## 🚀 Key Highlights
 
 🔗 Paste any direct downloadable video URL
 
@@ -36,7 +36,7 @@ ML-driven forward buffer prediction
 
 Media Format: HLS (.m3u8 + .ts segments)
 
-🛠️ Project Status
+## 🛠️ Project Status
 
 This project is being developed incrementally as a portfolio-grade system to understand real-world streaming architectures.
 
@@ -64,12 +64,12 @@ Network-aware chunk throttling
 
 UI polish & transitions
 
-⚠️ Note on Media Files
+## ⚠️ Note on Media Files
 
 Sample media files are used only for local testing.
 They are not part of the core system and may be removed or replaced in future commits.
 
-🎯 Why This Project?
+## 🎯 Why This Project?
 
 Most video players rely entirely on the browser.
 Previewly demonstrates how streaming platforms control playback from the backend, which is critical for:
@@ -84,7 +84,7 @@ Bandwidth control
 
 Cost optimization
 
-🧪 Intended Use
+## 🧪 Intended Use
 
 Learning distributed streaming systems
 
