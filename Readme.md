@@ -1,10 +1,10 @@
 ## 📽️ Previewly ⚡
 
-Instant Video Preview System (Backend-Controlled Streaming)
+>  Instant Video Preview System (Backend-Controlled Streaming)
 
 Previewly is a backend-driven video preview platform that allows users to instantly preview large downloadable videos without waiting for full downloads.
 
-The system focuses on how real streaming platforms work internally — buffering, chunking, adaptive logic, and controlled playback — rather than just playing a video.
+The system focuses on how real streaming platforms work internally buffering, chunking, adaptive logic, and controlled playback rather than just playing a video.
 
 ## 🚀 Key Highlights
 
