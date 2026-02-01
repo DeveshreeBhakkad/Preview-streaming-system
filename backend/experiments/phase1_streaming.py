@@ -3,12 +3,6 @@ def simple_stream():
     yield "Chunk 2"
     yield "Chunk 3"
 
-if __name__ == "__main__":
-    stream = simple_stream()
-
-    print(next(stream))
-    print(next(stream))
-    print(next(stream))
 
 
 import time 
