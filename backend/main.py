@@ -70,18 +70,7 @@ def start_preview(url: str = Query(...)):
         media_type="video/mp4"
     )
 
-@app.post("/start-hls-preview")
-async def start_hls_preview(request: Request):
-    body = await request.json()
-    video_url = body.get("url")
 
-    if not video_url or not video_url.startswith("http"):
-        raise HTTPException(status_code=400, detail="Invalid video URL")
-
-    playlist_relative_path = generate_hls_from_url(
-        video_url=video_url,
-        base_output_dir=HLS_DIR
-    )
 
     return {
         "playlist_url": f"http://127.0.0.1:8000/hls/{playlist_relative_path}"
