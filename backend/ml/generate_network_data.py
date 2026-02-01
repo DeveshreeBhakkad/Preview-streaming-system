@@ -29,6 +29,14 @@ def generate_sample():
         forward_buffer
     ]
 
+def generate_dataset(num_samples=1000):
+    header = [
+        "bandwidth_kbps",
+        "latency_ms",
+        "jitter_ms",
+        "packet_loss_pct",
+        "forward_buffer_chunks"
+    ]
 
 
     file_path = os.path.join(os.path.dirname(__file__), "network_buffer_data.csv")
