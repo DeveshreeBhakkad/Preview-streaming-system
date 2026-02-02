@@ -44,20 +44,6 @@ def train_model():
     print(f"[ML] Model saved to {MODEL_PATH}")
 
 
-def predict_forward_buffer(network_metrics: dict) -> int:
-    """
-    Predict forward buffer size using trained ML model.
-    """
-
-    model = joblib.load(MODEL_PATH)
-
-    import pandas as pd
-    features = pd.DataFrame([network_metrics])
-
-    prediction = model.predict(features)[0]
-
-    # Safety bounds
-    return max(1, int(round(prediction)))
 
 
 if __name__ == "__main__":
