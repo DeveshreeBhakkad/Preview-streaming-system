@@ -84,3 +84,8 @@ Previewly demonstrates how streaming platforms control playback from the backend
 - Recruiter-facing portfolio project
 
 💡 This project prioritizes system design, control, and architecture over simple video playback.
+
+---
+
+## Author
+Deveshree Bhakkad
