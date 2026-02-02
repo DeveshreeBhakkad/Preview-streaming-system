@@ -3,6 +3,9 @@ from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 from backend.utils.hls_generator import generate_hls_from_url
+from fastapi import FastAPI, Request, HTTPException
+import uuid
+import subprocess
 
 from backend.stream.stream_controller import StreamController
 from backend.stream.buffer_manager import BufferManager
@@ -78,11 +81,33 @@ async def start_hls_preview(request: Request):
     if not video_url or not video_url.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid video URL")
 
-    playlist_relative_path = generate_hls_from_url(
-        video_url=video_url,
-        base_output_dir=HLS_DIR
-    )
+    # Unique preview folder
+    preview_id = f"preview_{uuid.uuid4().hex[:8]}"
+    preview_dir = os.path.join(HLS_DIR, preview_id)
+    os.makedirs(preview_dir, exist_ok=True)
+
+    playlist_path = os.path.join(preview_dir, "playlist.m3u8")
+
+    # FFmpeg command (HLS generation)
+    cmd = [
+        "ffmpeg",
+        "-y",
+        "-i", video_url,
+        "-codec:v", "libx264",
+        "-codec:a", "aac",
+        "-hls_time", "10",
+        "-hls_list_size", "0",
+        "-f", "hls",
+        playlist_path
+    ]
+
+    try:
+        subprocess.Popen(cmd)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    playlist_url = f"http://127.0.0.1:8000/hls/{preview_id}/playlist.m3u8"
 
     return {
-        "playlist_url": f"http://127.0.0.1:8000/hls/{playlist_relative_path}"
+        "playlist_url": playlist_url
     }
