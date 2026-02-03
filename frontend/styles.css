@@ -13,6 +13,23 @@ body {
   align-items: center;
 }
 
+.app {
+  width: 100%;
+  max-width: 900px;
+  padding: 32px;
+  animation: fadeIn 0.8s ease;
+}
+
+.title {
+  font-size: 48px;
+  margin: 0;
+}
+
+.subtitle {
+  margin-top: 8px;
+  color: #c7d2fe;
+  line-height: 1.5;
+}
 
 .subtitle span {
   font-size: 14px;
