@@ -14,7 +14,14 @@ import os
 
 app = FastAPI()
 
-#
+# -----------------------------
+# STATIC FILES (HLS - optional)
+# -----------------------------
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+HLS_DIR = os.path.join(BASE_DIR, "data", "hls")
+
+if os.path.exists(HLS_DIR):
+    app.mount("/hls", StaticFiles(directory=HLS_DIR), name="hls")
 
 # -----------------------------
 # CORS
