@@ -5,6 +5,11 @@ from sklearn.metrics import mean_absolute_error
 import joblib
 import os
 
+# ---------- PATHS (ROBUST) ----------
+BASE_DIR = os.path.dirname(__file__)
+DATA_PATH = os.path.join(BASE_DIR, "network_buffer_data.csv")
+MODEL_PATH = os.path.join(BASE_DIR, "buffer_predictor.pkl")
+
 
 def train_model():
     # Load dataset
