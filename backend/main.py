@@ -19,6 +19,7 @@ app = FastAPI()
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 HLS_DIR = os.path.join(BASE_DIR, "data", "hls")
 os.makedirs(HLS_DIR, exist_ok=True)
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 
 app.mount("/hls", StaticFiles(directory=HLS_DIR), name="hls")
 
@@ -37,8 +38,9 @@ app.add_middleware(
 # HEALTH CHECK
 # -----------------------------
 @app.get("/")
-def home():
-    return {"status": "Backend is running"}
+def serve_frontend():
+    return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
+
 
 # -----------------------------
 # DEBUG BUFFER (DEV ONLY)
@@ -133,3 +135,11 @@ async def start_hls_preview(request: Request):
     return {
         "playlist_url": playlist_url
     }
+
+from fastapi.responses import FileResponse
+
+app.mount(
+    "/static",
+    StaticFiles(directory=FRONTEND_DIR),
+    name="static"
+)
