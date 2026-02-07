@@ -62,9 +62,9 @@ document.addEventListener("DOMContentLoaded", () => {
       hls.attachMedia(video);
 
       hls.on(Hls.Events.MANIFEST_PARSED, () => {
-        video.play();
-        setStatus("Streaming preview ⚡");
-      });
+        setStatus("Preview ready — press play ▶️");
+     });
+
     } else {
       video.src = data.playlist_url;
       video.play();

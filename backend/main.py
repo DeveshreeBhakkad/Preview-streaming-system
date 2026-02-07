@@ -112,21 +112,33 @@ async def start_hls_preview(request: Request):
     # -----------------------------
     # WAIT UNTIL PLAYLIST IS READY
     # -----------------------------
-    timeout = 15  # seconds
-    start_time = time.time()
+
+    import time
+    import glob
+
+    timeout = 20
+    start = time.time()
 
     while True:
-        if os.path.exists(playlist_path):
-            with open(playlist_path, "r") as f:
-                content = f.read()
-                if ".ts" in content:
-                    break
+       ts_files = glob.glob(os.path.join(preview_dir, "*.ts"))
 
-        if time.time() - start_time > timeout:
-            raise HTTPException(
+       if len(ts_files) >= 2:
+          break
+
+       if time.time() - start > timeout:
+           raise HTTPException(
                 status_code=500,
-                detail="HLS generation timeout"
-            )
+                detail="HLS segments not ready in time"
+        )
+
+    time.sleep(0.5)
+
+
+    if time.time() - start_time > timeout:
+        raise HTTPException(
+            status_code=500,
+            detail="HLS generation timeout"
+         )
 
         time.sleep(0.5)
 
