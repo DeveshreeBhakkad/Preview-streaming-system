@@ -1,26 +1,36 @@
-from fastapi import FastAPI, Request, HTTPException, Query
-from fastapi.responses import StreamingResponse
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
-
-from backend.stream.stream_controller import StreamController
-from backend.stream.buffer_manager import BufferManager
 
 import os
 import uuid
 import subprocess
 import time
+import glob
 
+from backend.stream.stream_controller import StreamController
+from backend.stream.buffer_manager import BufferManager
+
+# -----------------------------
+# APP INIT
+# -----------------------------
 app = FastAPI()
 
-# -----------------------------
-# PATHS
-# -----------------------------
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-HLS_DIR = os.path.join(BASE_DIR, "data", "hls")
-os.makedirs(HLS_DIR, exist_ok=True)
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
+DATA_DIR = os.path.join(BASE_DIR, "data")
+HLS_DIR = os.path.join(DATA_DIR, "hls")
 
+os.makedirs(HLS_DIR, exist_ok=True)
+
+# -----------------------------
+# STATIC FILES
+# -----------------------------
+# Frontend
+app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
+
+# HLS output
 app.mount("/hls", StaticFiles(directory=HLS_DIR), name="hls")
 
 # -----------------------------
@@ -35,15 +45,14 @@ app.add_middleware(
 )
 
 # -----------------------------
-# HEALTH CHECK
+# FRONTEND ENTRY POINT
 # -----------------------------
 @app.get("/")
 def serve_frontend():
     return FileResponse(os.path.join(FRONTEND_DIR, "index.html"))
 
-
 # -----------------------------
-# DEBUG BUFFER (DEV ONLY)
+# DEBUG BUFFER (DEV)
 # -----------------------------
 @app.get("/debug-buffer")
 def debug_buffer():
@@ -52,12 +61,12 @@ def debug_buffer():
     return {"active_chunks": bm.get_active_chunks()}
 
 # -----------------------------
-# RAW STREAM (EXPERIMENTAL)
+# RAW MP4 PREVIEW (OPTIONAL)
 # -----------------------------
 CHUNK_SIZE = 1024 * 1024  # 1 MB
 
 @app.get("/start-preview")
-def start_preview(url: str = Query(...)):
+def start_preview(url: str):
     if not url.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid video URL")
 
@@ -72,7 +81,7 @@ def start_preview(url: str = Query(...)):
     )
 
 # -----------------------------
-# HLS PREVIEW (REAL SYSTEM)
+# HLS PREVIEW (CORE FEATURE)
 # -----------------------------
 @app.post("/start-hls-preview")
 async def start_hls_preview(request: Request):
@@ -82,15 +91,13 @@ async def start_hls_preview(request: Request):
     if not video_url or not video_url.startswith("http"):
         raise HTTPException(status_code=400, detail="Invalid video URL")
 
-    # Unique preview folder
     preview_id = f"preview_{uuid.uuid4().hex[:8]}"
     preview_dir = os.path.join(HLS_DIR, preview_id)
     os.makedirs(preview_dir, exist_ok=True)
 
     playlist_path = os.path.join(preview_dir, "playlist.m3u8")
 
-    # FFmpeg command
-    cmd = [
+    ffmpeg_cmd = [
         "ffmpeg",
         "-y",
         "-i", video_url,
@@ -102,56 +109,31 @@ async def start_hls_preview(request: Request):
         playlist_path
     ]
 
-    # Start FFmpeg
     subprocess.Popen(
-        cmd,
+        ffmpeg_cmd,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
     )
 
-    # -----------------------------
-    # WAIT UNTIL PLAYLIST IS READY
-    # -----------------------------
-
-    import time
-    import glob
-
+    # ---- WAIT FOR SEGMENTS ----
     timeout = 20
     start = time.time()
 
     while True:
-       ts_files = glob.glob(os.path.join(preview_dir, "*.ts"))
+        ts_files = glob.glob(os.path.join(preview_dir, "*.ts"))
+        if len(ts_files) >= 2:
+            break
 
-       if len(ts_files) >= 2:
-          break
-
-       if time.time() - start > timeout:
-           raise HTTPException(
+        if time.time() - start > timeout:
+            raise HTTPException(
                 status_code=500,
-                detail="HLS segments not ready in time"
-        )
-
-    time.sleep(0.5)
-
-
-    if time.time() - start_time > timeout:
-        raise HTTPException(
-            status_code=500,
-            detail="HLS generation timeout"
-         )
+                detail="HLS generation timeout"
+            )
 
         time.sleep(0.5)
 
-    playlist_url = f"http://127.0.0.1:8000/hls/{preview_id}/playlist.m3u8"
+    playlist_url = f"/hls/{preview_id}/playlist.m3u8"
 
     return {
         "playlist_url": playlist_url
     }
-
-from fastapi.responses import FileResponse
-
-app.mount(
-    "/static",
-    StaticFiles(directory=FRONTEND_DIR),
-    name="static"
-)

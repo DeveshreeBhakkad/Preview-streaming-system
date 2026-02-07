@@ -36,7 +36,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     let res;
     try {
-      res = await fetch("http://127.0.0.1:8000/start-hls-preview", {
+      res = await fetch("/start-hls-preview", ... {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ url })
