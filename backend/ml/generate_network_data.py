@@ -39,15 +39,7 @@ def generate_dataset(num_samples=1000):
     ]
 
 
-    file_path = os.path.join(os.path.dirname(__file__), "network_buffer_data.csv")
-
-    with open(file_path, "w", newline="") as f:
-        writer = csv.writer(f)
-        writer.writerow(header)
-
-        for _ in range(num_samples):
-            writer.writerow(generate_sample())
-
+    
 
 
 if __name__ == "__main__":
