@@ -30,8 +30,7 @@ os.makedirs(HLS_DIR, exist_ok=True)
 # Frontend
 app.mount("/frontend", StaticFiles(directory=FRONTEND_DIR), name="frontend")
 
-# HLS output
-app.mount("/hls", StaticFiles(directory=HLS_DIR), name="hls")
+
 
 # -----------------------------
 # CORS
