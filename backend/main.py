@@ -18,7 +18,7 @@ from backend.stream.buffer_manager import BufferManager
 app = FastAPI()
 
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
-
+FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
 DATA_DIR = os.path.join(BASE_DIR, "data")
 HLS_DIR = os.path.join(DATA_DIR, "hls")
 
