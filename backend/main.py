@@ -63,22 +63,7 @@ def debug_buffer():
 # -----------------------------
 # RAW MP4 PREVIEW (OPTIONAL)
 # -----------------------------
-CHUNK_SIZE = 1024 * 1024  # 1 MB
 
-@app.get("/start-preview")
-def start_preview(url: str):
-    if not url.startswith("http"):
-        raise HTTPException(status_code=400, detail="Invalid video URL")
-
-    controller = StreamController(
-        video_url=url,
-        chunk_size=CHUNK_SIZE
-    )
-
-    return StreamingResponse(
-        controller.stream(),
-        media_type="video/mp4"
-    )
 
 # -----------------------------
 # HLS PREVIEW (CORE FEATURE)
