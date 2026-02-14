@@ -1,6 +1,6 @@
 /* 
   Previewly - Modern Video Preview System
-  CSS Styling for beautiful UI
+  Optimized video size without stretching
 */
 
 /* ============================================
@@ -142,15 +142,16 @@ button:active {
 }
 
 /* ============================================
-   VIDEO PLAYER AREA
+   VIDEO PLAYER AREA - PERFECT SIZE
    ============================================ */
 
 .video-wrapper {
   position: relative;
   margin-top: 32px;
+  margin-bottom: 32px;
   
   /* Smooth show/hide */
-  max-height: 1000px;
+  max-height: 1500px;
   opacity: 1;
   transition: all 0.4s ease;
   
@@ -163,10 +164,15 @@ button:active {
   opacity: 0;
   overflow: hidden;
   pointer-events: none;
+  margin-top: 0;
+  margin-bottom: 0;
 }
 
 video {
   width: 100%;
+  height: auto;          /* Auto height - no stretching! */
+  min-height: 450px;     /* Nice size - not tiny */
+  max-height: 600px;     /* Not too tall */
   border-radius: 16px;
   background: #000000;
   
@@ -175,10 +181,17 @@ video {
   
   /* Smooth scaling */
   transition: transform 0.3s ease;
+  
+  /* CRITICAL: Maintain aspect ratio, no stretching! */
+  object-fit: contain;
+  
+  /* Ensure video displays properly */
+  display: block;
 }
 
 video:hover {
-  transform: scale(1.02);
+  transform: scale(1.01);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.8);
 }
 
 /* Preview Mode Badge */
@@ -187,19 +200,22 @@ video:hover {
   top: 16px;
   right: 16px;
   
-  background: rgba(15, 23, 42, 0.9);
+  background: rgba(15, 23, 42, 0.95);
   backdrop-filter: blur(10px);
   
   padding: 8px 16px;
   border-radius: 999px;
   
   font-size: 12px;
-  font-weight: 600;
-  letter-spacing: 1.2px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
   color: #a5b4fc;
   
   /* Subtle glow */
-  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.4);
+  
+  z-index: 10;
+  pointer-events: none;
 }
 
 /* ============================================
@@ -294,9 +310,10 @@ video:hover {
 }
 
 /* ============================================
-   RESPONSIVE DESIGN (Mobile-friendly)
+   RESPONSIVE DESIGN
    ============================================ */
 
+/* Tablets */
 @media (max-width: 768px) {
   .app {
     padding: 20px;
@@ -318,14 +335,31 @@ video:hover {
     width: 100%;
   }
   
+  video {
+    min-height: 300px;
+    max-height: 400px;
+  }
+  
   .preview-badge {
     font-size: 10px;
     padding: 6px 12px;
   }
 }
 
+/* Mobile phones */
+@media (max-width: 480px) {
+  .title {
+    font-size: 32px;
+  }
+  
+  video {
+    min-height: 250px;
+    max-height: 350px;
+  }
+}
+
 /* ============================================
-   SCROLLBAR STYLING (Optional Polish)
+   SCROLLBAR STYLING
    ============================================ */
 
 ::-webkit-scrollbar {

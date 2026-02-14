@@ -36,7 +36,13 @@
 
     <!-- Video player area (hidden initially) -->
     <div class="video-wrapper hidden" id="videoWrapper">
-      <video id="video" controls></video>
+      <video 
+        id="video" 
+        controls 
+        controlsList="nodownload" 
+        allowfullscreen
+        preload="metadata"
+      ></video>
       <div class="preview-badge">PREVIEW MODE</div>
     </div>
 

@@ -1,11 +1,6 @@
 """
 Main FastAPI Server for Previewly Video Preview System
-
-This is the backend server that:
-1. Receives video URLs from frontend
-2. Converts videos to HLS format using FFmpeg
-3. Manages preview sessions
-4. Serves video segments with rewind control
+WAIT FOR FULL CONVERSION - Complete video playback
 """
 
 from fastapi import FastAPI, Request, HTTPException
@@ -19,6 +14,7 @@ import uuid
 import subprocess
 import time
 import glob
+import threading
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -45,7 +41,7 @@ from config import (
 
 app = FastAPI(
     title="Previewly API",
-    description="Backend-controlled video preview system with rewind restrictions",
+    description="Backend-controlled video preview system",
     version="1.0.0"
 )
 
@@ -54,13 +50,12 @@ app = FastAPI(
 # MIDDLEWARE CONFIGURATION
 # ============================================================================
 
-# CORS - allows frontend to communicate with backend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=CORS_ORIGINS,  # Which domains can access this API
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["*"],         # Allow all HTTP methods (GET, POST, etc.)
-    allow_headers=["*"],         # Allow all headers
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
@@ -68,10 +63,7 @@ app.add_middleware(
 # STATIC FILE SERVING
 # ============================================================================
 
-# Serve frontend files (HTML, CSS, JS)
 app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
-
-# Serve HLS video segments
 app.mount("/hls", StaticFiles(directory=str(HLS_DIR)), name="hls")
 
 
@@ -79,8 +71,6 @@ app.mount("/hls", StaticFiles(directory=str(HLS_DIR)), name="hls")
 # GLOBAL STATE
 # ============================================================================
 
-# Store active preview sessions
-# Format: {preview_id: {created_at, video_url, ffmpeg_process, preview_dir}}
 active_sessions: Dict[str, dict] = {}
 
 
@@ -90,11 +80,7 @@ active_sessions: Dict[str, dict] = {}
 
 @app.get("/")
 async def serve_frontend():
-    """
-    Serve the main frontend page (index.html)
-    
-    When user opens http://127.0.0.1:8000/ this loads the UI
-    """
+    """Serve the main frontend page"""
     index_path = FRONTEND_DIR / "index.html"
     
     if not index_path.exists():
@@ -102,7 +88,7 @@ async def serve_frontend():
             status_code=404,
             content={
                 "error": "Frontend not found",
-                "message": "Please ensure index.html exists in frontend/ directory"
+                "message": "index.html not found"
             }
         )
     
@@ -115,21 +101,7 @@ async def serve_frontend():
 
 @app.post("/start-preview")
 async def start_preview(request: Request):
-    """
-    Start a new video preview session
-    
-    Request body (JSON):
-    {
-        "url": "https://example.com/video.mp4"
-    }
-    
-    Returns:
-    {
-        "preview_id": "preview_abc123",
-        "playlist_url": "/hls/preview_abc123/playlist.m3u8",
-        "message": "Preview started successfully"
-    }
-    """
+    """Start video preview - WAITS FOR FULL CONVERSION"""
     
     # Parse request body
     try:
@@ -145,51 +117,63 @@ async def start_preview(request: Request):
     if not video_url:
         raise HTTPException(
             status_code=400,
-            detail="Missing 'url' parameter in request body"
+            detail="Missing 'url' parameter"
         )
     
     if not video_url.startswith("http"):
         raise HTTPException(
             status_code=400,
-            detail="Invalid video URL - must start with http:// or https://"
+            detail="URL must start with http:// or https://"
         )
     
     # Generate unique preview ID
     preview_id = f"preview_{uuid.uuid4().hex[:8]}"
     
-    # Create directory for this preview
-    preview_dir = HLS_DIR / preview_id
-    preview_dir.mkdir(parents=True, exist_ok=True)
+    # Create directory using absolute paths
+    preview_dir_str = os.path.join(str(HLS_DIR), preview_id)
+    os.makedirs(preview_dir_str, exist_ok=True)
     
-    # Path to output playlist
-    playlist_path = preview_dir / "playlist.m3u8"
+    # Define paths
+    playlist_path_str = os.path.join(preview_dir_str, "playlist.m3u8")
+    segment_pattern = os.path.join(preview_dir_str, "segment%03d.ts")
     
-    # Build FFmpeg command
+    print(f"\n{'='*70}")
+    print(f"[Preview] NEW PREVIEW REQUEST")
+    print(f"{'='*70}")
+    print(f"[Preview] Preview ID: {preview_id}")
+    print(f"[Preview] Video URL: {video_url}")
+    print(f"[Preview] Output: {os.path.abspath(preview_dir_str)}")
+    print(f"{'='*70}\n")
+    
+    # Build FFmpeg command with User-Agent to bypass 403 errors
     ffmpeg_cmd = [
         "ffmpeg",
-        "-y",                              # Overwrite output files
-        "-i", video_url,                   # Input video URL
-        "-codec:v", VIDEO_CODEC,           # Video codec (H.264)
-        "-codec:a", AUDIO_CODEC,           # Audio codec (AAC)
-        "-hls_time", str(SEGMENT_DURATION), # Segment duration (30 seconds)
-        "-hls_list_size", "0",             # Keep all segments in playlist
-        "-hls_segment_filename", str(preview_dir / "segment%03d.ts"),  # Segment naming
-        "-f", "hls",                       # Output format (HLS)
-        str(playlist_path)                 # Output playlist path
+        "-hide_banner",
+        "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "-y",
+        "-i", video_url,
+        "-c", "copy",           # Copy streams (fast)
+        "-f", "hls",
+        "-hls_time", "10",      # 10 second segments
+        "-hls_list_size", "0",  # Keep all segments
+        "-hls_segment_filename", segment_pattern,
+        playlist_path_str
     ]
     
-    print(f"[Preview] Starting FFmpeg for {preview_id}")
-    print(f"[Preview] Video URL: {video_url}")
-    print(f"[Preview] Output directory: {preview_dir}")
+    print(f"[FFmpeg] Starting conversion with browser User-Agent...")
+    print(f"[FFmpeg] Segment size: 10 seconds")
+    print(f"[FFmpeg] This will wait for FULL conversion to complete\n")
     
-    # Start FFmpeg process in background
+    # Start FFmpeg process
     try:
         ffmpeg_process = subprocess.Popen(
             ffmpeg_cmd,
             stdout=subprocess.PIPE,
             stderr=subprocess.PIPE,
-            text=True
+            text=True,
+            cwd=str(HLS_DIR)
         )
+        print(f"[FFmpeg] Process started (PID: {ffmpeg_process.pid})\n")
     except FileNotFoundError:
         raise HTTPException(
             status_code=500,
@@ -201,99 +185,180 @@ async def start_preview(request: Request):
             detail=f"Failed to start FFmpeg: {str(e)}"
         )
     
-    # Wait for initial segments to be generated
+    # Wait for FFmpeg to finish converting the ENTIRE video
     start_time = time.time()
     segments_ready = False
+    last_count = 0
+    ffmpeg_finished = False
     
-    while time.time() - start_time < FFMPEG_TIMEOUT:
-        # Check if playlist exists
-        if not playlist_path.exists():
-            time.sleep(0.5)
-            continue
-        
-        # Check if minimum segments exist
-        segment_files = list(preview_dir.glob("segment*.ts"))
-        
-        if len(segment_files) >= MIN_SEGMENTS_TO_START:
-            segments_ready = True
-            print(f"[Preview] {preview_id}: {len(segment_files)} segments ready")
-            break
-        
-        time.sleep(0.5)
+    print(f"[Preview] Converting video (timeout: {FFMPEG_TIMEOUT}s)...\n")
     
-    # Check if segments were generated
-    if not segments_ready:
-        # Cleanup failed preview
-        ffmpeg_process.kill()
-        cleanup_preview_directory(preview_dir)
-        
+    # Check if FFmpeg crashes immediately
+    time.sleep(3)
+    if ffmpeg_process.poll() is not None:
+        stdout, stderr = ffmpeg_process.communicate()
+        print(f"[FFmpeg] ❌ Process exited early!")
+        print(f"\n{'='*70}")
+        print(f"[FFmpeg] ERROR OUTPUT:")
+        print(f"{'='*70}")
+        print(stderr[:1000] if stderr else "(empty)")
+        print(f"{'='*70}\n")
+        cleanup_preview_directory(Path(preview_dir_str))
         raise HTTPException(
             status_code=500,
-            detail="Timeout waiting for video segments - video may be invalid or too large"
+            detail="FFmpeg failed to start - check server logs for details"
         )
     
-    # Store session info
+    # Wait for FFmpeg to finish converting
+    while time.time() - start_time < FFMPEG_TIMEOUT:
+        elapsed = int(time.time() - start_time)
+        
+        # Check if FFmpeg finished
+        ffmpeg_status = ffmpeg_process.poll()
+        if ffmpeg_status is not None:
+            # FFmpeg finished!
+            ffmpeg_finished = True
+            print(f"[Preview] ✅ FFmpeg conversion complete! (took {elapsed}s)")
+            break
+        
+        # Check playlist exists
+        if not os.path.exists(playlist_path_str):
+            if elapsed % 15 == 0 and elapsed > 0:
+                print(f"[Preview] Converting... ({elapsed}s elapsed)")
+            time.sleep(2.0)
+            continue
+        
+        # Check segment count
+        segment_files = glob.glob(os.path.join(preview_dir_str, "segment*.ts"))
+        segment_count = len(segment_files)
+        
+        # Show progress
+        if segment_count != last_count and segment_count > 0:
+            if segment_count == 1:
+                print(f"[Preview] ✓ First segment ready ({elapsed}s)")
+            elif segment_count % 10 == 0:  # Show every 10 segments
+                print(f"[Preview] ✓ {segment_count} segments converted... ({elapsed}s)")
+            last_count = segment_count
+        
+        time.sleep(2.0)  # Check every 2 seconds
+    
+    # Final check
+    if not ffmpeg_finished:
+        # Timeout - but check if we have segments
+        segment_files = glob.glob(os.path.join(preview_dir_str, "segment*.ts"))
+        segment_count = len(segment_files)
+        
+        if segment_count > 0:
+            print(f"\n[Preview] ⚠️ Timeout after {FFMPEG_TIMEOUT}s")
+            print(f"[Preview] BUT {segment_count} segments available - using partial video")
+            print(f"[Preview] Terminating FFmpeg...\n")
+            try:
+                ffmpeg_process.terminate()
+                ffmpeg_process.wait(timeout=5)
+            except:
+                try:
+                    ffmpeg_process.kill()
+                except:
+                    pass
+            segments_ready = True
+        else:
+            print(f"\n[Preview] ❌ TIMEOUT after {FFMPEG_TIMEOUT}s with NO segments!\n")
+            
+            # Get FFmpeg error
+            try:
+                ffmpeg_process.terminate()
+                stdout, stderr = ffmpeg_process.communicate(timeout=5)
+                print(f"[FFmpeg] Error output:\n{stderr[:1000] if stderr else 'None'}\n")
+            except:
+                try:
+                    ffmpeg_process.kill()
+                except:
+                    pass
+            
+            cleanup_preview_directory(Path(preview_dir_str))
+            raise HTTPException(
+                status_code=500,
+                detail=f"Timeout waiting for video conversion ({FFMPEG_TIMEOUT}s)"
+            )
+    else:
+        segments_ready = True
+    
+    # Count final segments
+    segment_files = glob.glob(os.path.join(preview_dir_str, "segment*.ts"))
+    segment_count = len(segment_files)
+    
+    if segment_count == 0:
+        print(f"[Preview] ❌ No segments generated!\n")
+        cleanup_preview_directory(Path(preview_dir_str))
+        raise HTTPException(
+            status_code=500,
+            detail="No video segments were generated"
+        )
+    
+    # Calculate video duration
+    video_duration_seconds = segment_count * 10
+    video_duration_minutes = video_duration_seconds // 60
+    
+    print(f"\n[Preview] ✅ SUCCESS!")
+    print(f"[Preview] Total segments: {segment_count}")
+    print(f"[Preview] Video duration: ~{video_duration_minutes}m {video_duration_seconds % 60}s")
+    print(f"[Preview] Ready for playback!\n")
+    
+    # Store session
     active_sessions[preview_id] = {
         "created_at": time.time(),
         "video_url": video_url,
         "ffmpeg_process": ffmpeg_process,
-        "preview_dir": str(preview_dir)
+        "preview_dir": preview_dir_str,
+        "segment_count": segment_count
     }
     
-    # Build playlist URL for frontend
     playlist_url = f"/hls/{preview_id}/playlist.m3u8"
     
-    print(f"[Preview] {preview_id}: Preview started successfully")
+    print(f"[Preview] Playlist URL: {playlist_url}")
+    print(f"{'='*70}\n")
     
     return {
         "preview_id": preview_id,
         "playlist_url": playlist_url,
-        "segment_duration": SEGMENT_DURATION,
-        "message": "Preview started successfully"
+        "segment_duration": 10,
+        "total_segments": segment_count,
+        "video_duration_seconds": video_duration_seconds,
+        "message": "Preview ready - full video available"
     }
 
 
 @app.post("/end-preview")
 async def end_preview(request: Request):
-    """
-    End a preview session and cleanup resources
-    
-    Request body (JSON):
-    {
-        "preview_id": "preview_abc123"
-    }
-    """
+    """End a preview session"""
     
     try:
         body = await request.json()
         preview_id = body.get("preview_id")
     except:
-        raise HTTPException(status_code=400, detail="Invalid request body")
+        raise HTTPException(status_code=400, detail="Invalid request")
     
     if not preview_id:
         raise HTTPException(status_code=400, detail="Missing preview_id")
     
     if preview_id not in active_sessions:
-        raise HTTPException(status_code=404, detail="Preview session not found")
+        raise HTTPException(status_code=404, detail="Preview not found")
     
-    # Cleanup session
     cleanup_session(preview_id)
     
     return {
         "status": "success",
-        "message": f"Preview {preview_id} ended and cleaned up"
+        "message": f"Preview {preview_id} ended"
     }
 
 
 # ============================================================================
-# ROUTES - DEBUG & MONITORING
+# ROUTES - DEBUG
 # ============================================================================
 
 @app.get("/health")
 async def health_check():
-    """
-    Health check endpoint - verify server is running
-    """
+    """Health check"""
     return {
         "status": "healthy",
         "active_sessions": len(active_sessions),
@@ -303,16 +368,16 @@ async def health_check():
 
 @app.get("/debug/sessions")
 async def debug_sessions():
-    """
-    List all active preview sessions
-    """
+    """List active sessions"""
     sessions_info = []
     
     for preview_id, session in active_sessions.items():
+        age = int(time.time() - session["created_at"])
         sessions_info.append({
             "preview_id": preview_id,
-            "age_seconds": int(time.time() - session["created_at"]),
-            "video_url": session["video_url"]
+            "age_seconds": age,
+            "video_url": session["video_url"],
+            "segment_count": session.get("segment_count", 0)
         })
     
     return {
@@ -326,97 +391,83 @@ async def debug_sessions():
 # ============================================================================
 
 def cleanup_session(preview_id: str):
-    """
-    Cleanup a specific preview session
-    - Stop FFmpeg process
-    - Delete video segments
-    - Remove from active sessions
-    """
+    """Cleanup a preview session"""
     if preview_id not in active_sessions:
         return
     
+    print(f"[Cleanup] Cleaning up session: {preview_id}")
+    
     session = active_sessions[preview_id]
     
-    # Stop FFmpeg process
+    # Stop FFmpeg if still running
     ffmpeg_process = session.get("ffmpeg_process")
     if ffmpeg_process:
         try:
-            ffmpeg_process.terminate()
-            ffmpeg_process.wait(timeout=5)
+            if ffmpeg_process.poll() is None:
+                ffmpeg_process.terminate()
+                ffmpeg_process.wait(timeout=5)
         except:
-            ffmpeg_process.kill()
+            try:
+                ffmpeg_process.kill()
+            except:
+                pass
     
-    # Delete preview directory
+    # Delete directory
     preview_dir = Path(session["preview_dir"])
     cleanup_preview_directory(preview_dir)
     
     # Remove from active sessions
     del active_sessions[preview_id]
     
-    print(f"[Cleanup] Session {preview_id} cleaned up")
+    print(f"[Cleanup] Session {preview_id} cleaned up\n")
 
 
 def cleanup_preview_directory(preview_dir: Path):
-    """
-    Delete all files in a preview directory
-    """
+    """Delete preview directory and contents"""
     if not preview_dir.exists():
         return
     
     try:
-        # Delete all files
+        file_count = 0
         for file in preview_dir.glob("*"):
-            file.unlink()
+            try:
+                file.unlink()
+                file_count += 1
+            except:
+                pass
         
-        # Delete directory
-        preview_dir.rmdir()
-        
-        print(f"[Cleanup] Deleted directory: {preview_dir}")
+        try:
+            preview_dir.rmdir()
+            print(f"[Cleanup] Deleted {file_count} files from {preview_dir.name}")
+        except:
+            print(f"[Cleanup] Could not delete directory {preview_dir.name}")
+            
     except Exception as e:
-        print(f"[Cleanup] Error deleting {preview_dir}: {e}")
-
-
-def cleanup_old_sessions():
-    """
-    Cleanup sessions older than SESSION_TIMEOUT
-    Called periodically to prevent resource leaks
-    """
-    current_time = time.time()
-    sessions_to_remove = []
-    
-    for preview_id, session in active_sessions.items():
-        age = current_time - session["created_at"]
-        
-        if age > SESSION_TIMEOUT:
-            sessions_to_remove.append(preview_id)
-    
-    for preview_id in sessions_to_remove:
-        print(f"[Cleanup] Auto-cleaning old session: {preview_id}")
-        cleanup_session(preview_id)
+        print(f"[Cleanup] Error: {e}")
 
 
 # ============================================================================
-# STARTUP & SHUTDOWN EVENTS
+# STARTUP & SHUTDOWN
 # ============================================================================
 
 @app.on_event("startup")
 async def startup_event():
-    """
-    Run when server starts
-    """
+    """Server startup"""
     print("\n")
-    print_config()  # Print configuration from config.py
+    print_config()
     print("🚀 Server started successfully!")
-    print(f"📱 Open in browser: http://{SERVER_HOST}:{SERVER_PORT}")
-    print("\n")
+    print(f"📱 Open: http://{SERVER_HOST}:{SERVER_PORT}")
+    print(f"\n💡 Working Test URLs:")
+    print(f"   Small (10s): https://www.w3schools.com/html/mov_bbb.mp4")
+    print(f"   Big Buck Bunny (9m): https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4")
+    print(f"   Sample (30s): https://filesamples.com/samples/video/mp4/sample_1280x720.mp4")
+    print(f"\n⏳ Note: Server waits for FULL conversion before playing")
+    print(f"   Larger videos may take 1-3 minutes to convert\n")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
-    """
-    Run when server shuts down
-    - Cleanup all active sessions
-    """
+    """Server shutdown"""
     print("\n[Shutdown] Cleaning up active sessions...")
     
     session_ids = list(active_sessions.keys())
@@ -424,15 +475,14 @@ async def shutdown_event():
         cleanup_session(preview_id)
     
     print("[Shutdown] All sessions cleaned up")
-    print("[Shutdown] Server stopped")
+    print("[Shutdown] Server stopped\n")
 
 
 # ============================================================================
-# MAIN ENTRY POINT
+# MAIN
 # ============================================================================
 
 if __name__ == "__main__":
-    # Run the server
     uvicorn.run(
         app,
         host=SERVER_HOST,

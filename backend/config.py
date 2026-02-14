@@ -81,7 +81,7 @@ CORS_ORIGINS = [
 # ============================================================================
 
 # How long before preview sessions auto-cleanup (in seconds)
-SESSION_TIMEOUT = 3600  # 1 hour = 3600 seconds
+SESSION_TIMEOUT = 7200  # 1 hour = 3600 seconds
 
 # Maximum concurrent preview sessions allowed
 MAX_CONCURRENT_SESSIONS = 100
@@ -92,10 +92,10 @@ MAX_CONCURRENT_SESSIONS = 100
 # ============================================================================
 
 # FFmpeg timeout for initial segment generation (seconds)
-FFMPEG_TIMEOUT = 30  # Wait max 30 seconds for first segments
+FFMPEG_TIMEOUT = 300  # Wait max 30 seconds for first segments
 
 # Minimum segments needed before preview can start
-MIN_SEGMENTS_TO_START = 2  # Need at least 2 segments ready
+MIN_SEGMENTS_TO_START = 1  # Need at least 2 segments ready
 
 
 # ============================================================================
