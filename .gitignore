@@ -1,14 +1,22 @@
-# Virtual env
+# Python
 venv/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
 
-# Generated streaming data
-data/
+# Data
 data/hls/
-
-# Media files
-*.mp4
 *.ts
 *.m3u8
 
-# Python cache
-__pycache__/
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
