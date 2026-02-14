@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Previewly ⚡ Instant Video Preview</title>
+
+  <!-- Link to our CSS file -->
+  <link rel="stylesheet" href="/static/styles.css" />
+
+  <!-- HLS.js library - handles HLS video playback -->
+  <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+</head>
+<body>
+
+  <div class="app">
+    <!-- Main Title -->
+    <h1 class="title">Previewly ⚡</h1>
+
+    <!-- Subtitle with description -->
+    <p class="subtitle">
+      Instantly preview large videos without downloading 🚀  
+      <br />
+      <span>Smart buffering · Limited rewind · Backend-controlled streaming</span>
+    </p>
+
+    <!-- Input area -->
+    <div class="input-box">
+      <input
+        id="urlInput"
+        type="text"
+        placeholder="Paste a direct video link (.mp4, .mkv, or HLS .m3u8)"
+      />
+      <button id="startBtn">Preview Instantly</button>
+    </div>
+
+    <!-- Video player area (hidden initially) -->
+    <div class="video-wrapper hidden" id="videoWrapper">
+      <video id="video" controls></video>
+      <div class="preview-badge">PREVIEW MODE</div>
+    </div>
+
+    <!-- Status messages -->
+    <div id="status" class="status"></div>
+
+    <!-- Info section -->
+    <div class="info-section">
+      <h3>How it works:</h3>
+      <ul>
+        <li>🎬 Paste any direct video URL or HLS stream</li>
+        <li>⚡ Instant preview without full download</li>
+        <li>⏪ 2-minute rewind capability</li>
+        <li>⏩ 2-minute forward buffer</li>
+        <li>🔒 Backend-controlled segment management</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- Link to our JavaScript file -->
+  <script src="/static/player.js"></script>
+</body>
+</html>
