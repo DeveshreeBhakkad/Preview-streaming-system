@@ -92,7 +92,7 @@ MAX_CONCURRENT_SESSIONS = 100
 # ============================================================================
 
 # FFmpeg timeout for initial segment generation (seconds)
-FFMPEG_TIMEOUT = 300  # Wait max 30 seconds for first segments
+FFMPEG_TIMEOUT = 600  # Wait max 30 seconds for first segments
 
 # Minimum segments needed before preview can start
 MIN_SEGMENTS_TO_START = 1  # Need at least 2 segments ready
