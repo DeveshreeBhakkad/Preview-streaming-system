@@ -1,6 +1,6 @@
 """
 Main FastAPI Server for Previewly Video Preview System
-WITH RE-ENCODING FOR MAXIMUM COMPATIBILITY
+PROGRESSIVE LOADING MODE - Start playing immediately!
 """
 
 from fastapi import FastAPI, Request, HTTPException
@@ -41,7 +41,7 @@ from config import (
 
 app = FastAPI(
     title="Previewly API",
-    description="Backend-controlled video preview system",
+    description="Backend-controlled video preview system with progressive loading",
     version="1.0.0"
 )
 
@@ -96,12 +96,15 @@ async def serve_frontend():
 
 
 # ============================================================================
-# ROUTES - VIDEO PREVIEW
+# ROUTES - VIDEO PREVIEW (PROGRESSIVE MODE)
 # ============================================================================
 
 @app.post("/start-preview")
 async def start_preview(request: Request):
-    """Start video preview - RE-ENCODES for maximum compatibility"""
+    """
+    Start video preview - PROGRESSIVE MODE
+    Returns after first segment, continues encoding in background
+    """
     
     # Parse request body
     try:
@@ -129,7 +132,7 @@ async def start_preview(request: Request):
     # Generate unique preview ID
     preview_id = f"preview_{uuid.uuid4().hex[:8]}"
     
-    # Create directory using absolute paths
+    # Create directory
     preview_dir_str = os.path.join(str(HLS_DIR), preview_id)
     os.makedirs(preview_dir_str, exist_ok=True)
     
@@ -138,40 +141,39 @@ async def start_preview(request: Request):
     segment_pattern = os.path.join(preview_dir_str, "segment%03d.ts")
     
     print(f"\n{'='*70}")
-    print(f"[Preview] NEW PREVIEW REQUEST")
+    print(f"[Preview] NEW PREVIEW REQUEST (PROGRESSIVE MODE)")
     print(f"{'='*70}")
-    print(f"[Preview] Preview ID: {preview_id}")
-    print(f"[Preview] Video URL: {video_url}")
+    print(f"[Preview] ID: {preview_id}")
+    print(f"[Preview] URL: {video_url}")
     print(f"[Preview] Output: {os.path.abspath(preview_dir_str)}")
     print(f"{'='*70}\n")
     
-    # Build FFmpeg command - RE-ENCODE for maximum reliability
+    # Build FFmpeg command - RE-ENCODE with progressive HLS
     ffmpeg_cmd = [
         "ffmpeg",
         "-hide_banner",
-        "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
+        "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "-y",
         "-i", video_url,
-        # RE-ENCODE for compatibility (slower but reliable)
-        "-c:v", "libx264",       # H.264 video codec
-        "-preset", "ultrafast",  # Fast encoding speed
-        "-crf", "23",            # Quality level (23 = good)
-        "-c:a", "aac",           # AAC audio codec
-        "-b:a", "128k",          # Audio bitrate
-        # HLS settings
+        # RE-ENCODE
+        "-c:v", "libx264",
+        "-preset", "ultrafast",
+        "-crf", "23",
+        "-c:a", "aac",
+        "-b:a", "128k",
+        # HLS settings for progressive loading
         "-f", "hls",
-        "-hls_time", "10",       # 10 second segments
-        "-hls_list_size", "0",   # Keep all segments
+        "-hls_time", "10",
+        "-hls_list_size", "0",           # Keep all segments in playlist
+        "-hls_flags", "append_list",     # Append to playlist as segments ready
         "-hls_segment_filename", segment_pattern,
         playlist_path_str
     ]
     
     print(f"[FFmpeg] Starting conversion...")
-    print(f"[FFmpeg] Mode: RE-ENCODING (H.264 ultrafast)")
-    print(f"[FFmpeg] Codec: libx264 + aac")
-    print(f"[FFmpeg] Segment size: 10 seconds")
-    print(f"[FFmpeg] Note: Re-encoding takes longer but is more reliable")
-    print(f"[FFmpeg] Expected time: ~2-5 minutes for 9-minute video\n")
+    print(f"[FFmpeg] Mode: PROGRESSIVE (play while encoding)")
+    print(f"[FFmpeg] Codec: H.264 ultrafast + AAC")
+    print(f"[FFmpeg] Segments: 10 seconds each\n")
     
     # Start FFmpeg process
     try:
@@ -182,11 +184,12 @@ async def start_preview(request: Request):
             text=True,
             cwd=str(HLS_DIR)
         )
-        print(f"[FFmpeg] Process started (PID: {ffmpeg_process.pid})\n")
+        print(f"[FFmpeg] Process started (PID: {ffmpeg_process.pid})")
+        print(f"[FFmpeg] Encoding in background...\n")
     except FileNotFoundError:
         raise HTTPException(
             status_code=500,
-            detail="FFmpeg not found - please install FFmpeg"
+            detail="FFmpeg not found"
         )
     except Exception as e:
         raise HTTPException(
@@ -194,14 +197,12 @@ async def start_preview(request: Request):
             detail=f"Failed to start FFmpeg: {str(e)}"
         )
     
-    # Wait for FFmpeg to finish converting the ENTIRE video
+    # Wait for FIRST segment only (progressive mode)
     start_time = time.time()
     segments_ready = False
-    last_count = 0
-    ffmpeg_finished = False
-    last_log_time = 0
+    max_wait = 90  # Wait max 90 seconds for first segment
     
-    print(f"[Preview] Converting video (timeout: {FFMPEG_TIMEOUT}s)...\n")
+    print(f"[Preview] Waiting for first segment (max {max_wait}s)...\n")
     
     # Check if FFmpeg crashes immediately
     time.sleep(3)
@@ -209,142 +210,97 @@ async def start_preview(request: Request):
         stdout, stderr = ffmpeg_process.communicate()
         print(f"[FFmpeg] ❌ Process exited early!")
         print(f"\n{'='*70}")
-        print(f"[FFmpeg] ERROR OUTPUT:")
+        print(f"[FFmpeg] ERROR:")
         print(f"{'='*70}")
         print(stderr[:2000] if stderr else "(empty)")
         print(f"{'='*70}\n")
         cleanup_preview_directory(Path(preview_dir_str))
         raise HTTPException(
             status_code=500,
-            detail="FFmpeg failed to start - check server logs"
+            detail="FFmpeg failed to start"
         )
     
-    # Wait for FFmpeg to finish converting
-    while time.time() - start_time < FFMPEG_TIMEOUT:
+    # Wait for first segment
+    while time.time() - start_time < max_wait:
         elapsed = int(time.time() - start_time)
         
-        # Check if FFmpeg finished
-        ffmpeg_status = ffmpeg_process.poll()
-        if ffmpeg_status is not None:
-            # FFmpeg finished!
-            ffmpeg_finished = True
-            print(f"\n[Preview] ✅ FFmpeg conversion complete! (took {elapsed}s)")
-            break
-        
-        # Check playlist exists
-        if not os.path.exists(playlist_path_str):
-            if elapsed - last_log_time >= 15:
-                print(f"[Preview] Converting... ({elapsed}s elapsed)")
-                last_log_time = elapsed
-            time.sleep(2.0)
-            continue
-        
-        # Check segment count
-        segment_files = glob.glob(os.path.join(preview_dir_str, "segment*.ts"))
-        segment_count = len(segment_files)
-        
-        # Show progress
-        if segment_count != last_count and segment_count > 0:
-            if segment_count == 1:
-                print(f"[Preview] ✓ First segment ready! ({elapsed}s)")
-            elif segment_count % 5 == 0:  # Every 5 segments
-                estimated_total = int((elapsed / segment_count) * (596 / 10))  # Estimate based on 9:56 video
-                print(f"[Preview] ✓ {segment_count} segments converted... ({elapsed}s, ~{estimated_total}s total)")
-            last_count = segment_count
-        
-        time.sleep(2.0)  # Check every 2 seconds
-    
-    # Final check
-    if not ffmpeg_finished:
-        # Timeout - but check if we have segments
-        segment_files = glob.glob(os.path.join(preview_dir_str, "segment*.ts"))
-        segment_count = len(segment_files)
-        
-        if segment_count > 0:
-            print(f"\n[Preview] ⚠️ Timeout after {FFMPEG_TIMEOUT}s")
-            print(f"[Preview] BUT {segment_count} segments available")
-            print(f"[Preview] Using partial video (first {segment_count * 10} seconds)")
-            print(f"[Preview] Terminating FFmpeg...\n")
-            try:
-                ffmpeg_process.terminate()
-                ffmpeg_process.wait(timeout=5)
-            except:
-                try:
-                    ffmpeg_process.kill()
-                except:
-                    pass
-            segments_ready = True
-        else:
-            print(f"\n[Preview] ❌ TIMEOUT after {FFMPEG_TIMEOUT}s with NO segments!\n")
-            
-            # Get FFmpeg error
-            try:
-                ffmpeg_process.terminate()
-                stdout, stderr = ffmpeg_process.communicate(timeout=5)
-                print(f"{'='*70}")
-                print(f"[FFmpeg] FULL ERROR OUTPUT:")
-                print(f"{'='*70}")
-                print(stderr if stderr else "(empty)")
-                print(f"{'='*70}\n")
-            except:
-                try:
-                    ffmpeg_process.kill()
-                except:
-                    pass
-            
+        # Check if FFmpeg crashed
+        if ffmpeg_process.poll() is not None:
+            stdout, stderr = ffmpeg_process.communicate()
+            print(f"\n[FFmpeg] ❌ Process stopped unexpectedly!")
+            print(f"[FFmpeg] Error: {stderr[:500] if stderr else 'Unknown'}\n")
             cleanup_preview_directory(Path(preview_dir_str))
             raise HTTPException(
                 status_code=500,
-                detail=f"Timeout waiting for video conversion ({FFMPEG_TIMEOUT}s). Video may be too large or network too slow."
+                detail="FFmpeg stopped - video may be invalid"
             )
-    else:
-        segments_ready = True
+        
+        # Check for playlist
+        if not os.path.exists(playlist_path_str):
+            if elapsed % 15 == 0 and elapsed > 0:
+                print(f"[Preview] Waiting... ({elapsed}s)")
+            time.sleep(2.0)
+            continue
+        
+        # Check for at least ONE segment
+        segment_files = glob.glob(os.path.join(preview_dir_str, "segment*.ts"))
+        
+        if len(segment_files) >= 1:
+            # FIRST SEGMENT READY - RETURN IMMEDIATELY!
+            segments_ready = True
+            print(f"[Preview] ✅ First segment ready! ({elapsed}s)")
+            print(f"[Preview] 🎬 Starting playback now")
+            print(f"[Preview] 📹 FFmpeg continues encoding in background\n")
+            break
+        
+        time.sleep(2.0)
     
-    # Count final segments
-    segment_files = glob.glob(os.path.join(preview_dir_str, "segment*.ts"))
-    segment_count = len(segment_files)
-    
-    if segment_count == 0:
-        print(f"[Preview] ❌ No segments generated!\n")
+    # Check if we got first segment
+    if not segments_ready:
+        print(f"\n[Preview] ❌ Timeout - no segments after {max_wait}s\n")
+        
+        try:
+            if ffmpeg_process.poll() is None:
+                ffmpeg_process.terminate()
+            stdout, stderr = ffmpeg_process.communicate(timeout=5)
+            print(f"[FFmpeg] Output: {stderr[:1000] if stderr else 'None'}\n")
+        except:
+            try:
+                ffmpeg_process.kill()
+            except:
+                pass
+        
         cleanup_preview_directory(Path(preview_dir_str))
         raise HTTPException(
             status_code=500,
-            detail="No video segments were generated - check FFmpeg output"
+            detail=f"Timeout waiting for first segment. Video may be too large or slow to encode."
         )
     
-    # Calculate video duration
-    video_duration_seconds = segment_count * 10
-    video_duration_minutes = video_duration_seconds // 60
-    
-    print(f"\n{'='*70}")
-    print(f"[Preview] ✅ SUCCESS!")
-    print(f"{'='*70}")
-    print(f"[Preview] Total segments: {segment_count}")
-    print(f"[Preview] Video duration: ~{video_duration_minutes}m {video_duration_seconds % 60}s")
-    print(f"[Preview] Conversion time: {int(time.time() - start_time)}s")
-    print(f"[Preview] Ready for playback!")
-    print(f"{'='*70}\n")
-    
-    # Store session
+    # Store session (FFmpeg still running!)
     active_sessions[preview_id] = {
         "created_at": time.time(),
         "video_url": video_url,
         "ffmpeg_process": ffmpeg_process,
         "preview_dir": preview_dir_str,
-        "segment_count": segment_count
+        "mode": "progressive"
     }
     
     playlist_url = f"/hls/{preview_id}/playlist.m3u8"
     
-    print(f"[Preview] Playlist URL: {playlist_url}\n")
+    print(f"{'='*70}")
+    print(f"[Preview] ✅ PREVIEW READY!")
+    print(f"{'='*70}")
+    print(f"[Preview] Mode: PROGRESSIVE")
+    print(f"[Preview] Playlist: {playlist_url}")
+    print(f"[Preview] Status: Playing + Encoding simultaneously")
+    print(f"{'='*70}\n")
     
     return {
         "preview_id": preview_id,
         "playlist_url": playlist_url,
         "segment_duration": 10,
-        "total_segments": segment_count,
-        "video_duration_seconds": video_duration_seconds,
-        "message": "Preview ready - full video available"
+        "mode": "progressive",
+        "message": "Preview ready - more segments loading"
     }
 
 
@@ -393,11 +349,24 @@ async def debug_sessions():
     
     for preview_id, session in active_sessions.items():
         age = int(time.time() - session["created_at"])
+        
+        # Check if FFmpeg still running
+        ffmpeg_running = False
+        ffmpeg_process = session.get("ffmpeg_process")
+        if ffmpeg_process and ffmpeg_process.poll() is None:
+            ffmpeg_running = True
+        
+        # Count segments
+        preview_dir = session["preview_dir"]
+        segment_count = len(glob.glob(os.path.join(preview_dir, "segment*.ts")))
+        
         sessions_info.append({
             "preview_id": preview_id,
             "age_seconds": age,
             "video_url": session["video_url"],
-            "segment_count": session.get("segment_count", 0)
+            "mode": session.get("mode", "unknown"),
+            "segments": segment_count,
+            "ffmpeg_running": ffmpeg_running
         })
     
     return {
@@ -415,7 +384,7 @@ def cleanup_session(preview_id: str):
     if preview_id not in active_sessions:
         return
     
-    print(f"[Cleanup] Cleaning up session: {preview_id}")
+    print(f"[Cleanup] Cleaning up: {preview_id}")
     
     session = active_sessions[preview_id]
     
@@ -424,6 +393,7 @@ def cleanup_session(preview_id: str):
     if ffmpeg_process:
         try:
             if ffmpeg_process.poll() is None:
+                print(f"[Cleanup] Stopping FFmpeg...")
                 ffmpeg_process.terminate()
                 ffmpeg_process.wait(timeout=5)
         except:
@@ -436,14 +406,14 @@ def cleanup_session(preview_id: str):
     preview_dir = Path(session["preview_dir"])
     cleanup_preview_directory(preview_dir)
     
-    # Remove from active sessions
+    # Remove from sessions
     del active_sessions[preview_id]
     
-    print(f"[Cleanup] Session {preview_id} cleaned up\n")
+    print(f"[Cleanup] Done\n")
 
 
 def cleanup_preview_directory(preview_dir: Path):
-    """Delete preview directory and contents"""
+    """Delete preview directory"""
     if not preview_dir.exists():
         return
     
@@ -459,7 +429,7 @@ def cleanup_preview_directory(preview_dir: Path):
         try:
             preview_dir.rmdir()
             if file_count > 0:
-                print(f"[Cleanup] Deleted {file_count} files from {preview_dir.name}")
+                print(f"[Cleanup] Deleted {file_count} files")
         except:
             pass
             
@@ -476,28 +446,27 @@ async def startup_event():
     """Server startup"""
     print("\n")
     print_config()
-    print("🚀 Server started successfully!")
+    print("🚀 Server started!")
     print(f"📱 Open: http://{SERVER_HOST}:{SERVER_PORT}")
-    print(f"\n💡 Working Test URLs:")
-    print(f"   Small (10s): https://www.w3schools.com/html/mov_bbb.mp4")
-    print(f"   Big Buck Bunny (9m): https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4")
-    print(f"\n⏳ Note: Re-encoding mode for compatibility")
-    print(f"   Small videos: ~10-30 seconds")
-    print(f"   9-minute video: ~3-5 minutes to convert")
-    print(f"   Timeout set to: {FFMPEG_TIMEOUT} seconds\n")
+    print(f"\n💡 Test URLs:")
+    print(f"   Small: https://www.w3schools.com/html/mov_bbb.mp4")
+    print(f"   Big Buck Bunny: https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4")
+    print(f"\n⚡ PROGRESSIVE MODE:")
+    print(f"   Video starts playing after ~5-30 seconds")
+    print(f"   Rest of video loads while you watch")
+    print(f"   Like YouTube/Netflix!\n")
 
 
 @app.on_event("shutdown")
 async def shutdown_event():
     """Server shutdown"""
-    print("\n[Shutdown] Cleaning up active sessions...")
+    print("\n[Shutdown] Cleaning up...")
     
     session_ids = list(active_sessions.keys())
     for preview_id in session_ids:
         cleanup_session(preview_id)
     
-    print("[Shutdown] All sessions cleaned up")
-    print("[Shutdown] Server stopped\n")
+    print("[Shutdown] Done\n")
 
 
 # ============================================================================
