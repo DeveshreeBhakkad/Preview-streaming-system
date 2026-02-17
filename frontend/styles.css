@@ -362,19 +362,3 @@ video:hover {
    SCROLLBAR STYLING
    ============================================ */
 
-::-webkit-scrollbar {
-  width: 12px;
-}
-
-::-webkit-scrollbar-track {
-  background: #1e293b;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #6366f1;
-  border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #4f46e5;
-}
