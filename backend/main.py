@@ -1,7 +1,8 @@
 """
 Main FastAPI Server for Previewly Video Preview System
 STREAM COPY MODE - Maximum speed (no re-encoding)
-Works only with H.264 videos but is 100x faster!
+Works only with H.264 videos but is 100x faster!'
+PREVIEWLY
 """
 
 from fastapi import FastAPI, Request, HTTPException
