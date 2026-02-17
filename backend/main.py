@@ -20,21 +20,8 @@ import threading
 from pathlib import Path
 from typing import Dict, Optional
 
-# Import our configuration
-from config import (
-    FRONTEND_DIR,
-    HLS_DIR,
-    SERVER_HOST,
-    SERVER_PORT,
-    CORS_ORIGINS,
-    SEGMENT_DURATION,
-    VIDEO_CODEC,
-    AUDIO_CODEC,
-    FFMPEG_TIMEOUT,
-    MIN_SEGMENTS_TO_START,
-    SESSION_TIMEOUT,
-    print_config
-)
+#
+
 
 
 # ============================================================================
