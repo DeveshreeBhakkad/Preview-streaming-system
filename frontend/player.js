@@ -226,7 +226,16 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
- 
+  /**
+   * Video event handlers
+   */
+
+  // When video starts playing
+  video.addEventListener("play", () => {
+    console.log("▶️ Video playback started");
+    setStatus("▶️ Playing preview...");
+  });
+
   // When video is paused
   video.addEventListener("pause", () => {
     console.log("⏸️ Video paused");
