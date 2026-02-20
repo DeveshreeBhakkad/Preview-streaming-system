@@ -151,21 +151,7 @@ async def start_preview(request: Request):
     print(f"[Preview] Output: {os.path.abspath(preview_dir_str)}")
     print(f"{'='*70}\n")
     
-    # STREAM COPY - NO RE-ENCODING (super fast!)
-    ffmpeg_cmd = [
-        "ffmpeg",
-        "-hide_banner",
-        "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-        "-y",
-        "-i", video_url,
-        "-c", "copy",              # COPY - NO ENCODING!
-        "-f", "hls",
-        "-hls_time", "10",
-        "-hls_list_size", "0",
-        "-hls_segment_filename", segment_pattern,
-        "-start_number", "0",
-        playlist_path_str
-    ]
+    
     
     print(f"[FFmpeg] Starting STREAM COPY mode...")
     print(f"[FFmpeg] Mode: Copy streams (no re-encoding)")
