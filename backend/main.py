@@ -1,8 +1,7 @@
 """
 Main FastAPI Server for Previewly Video Preview System
-STREAM COPY MODE - Maximum speed (no re-encoding)
-Works only with H.264 videos but is 100x faster!'
-PREVIEWLY
+DOWNLOAD-FIRST APPROACH - Most reliable method
+Downloads video, then converts locally
 """
 
 from fastapi import FastAPI, Request, HTTPException
@@ -17,6 +16,7 @@ import subprocess
 import time
 import glob
 import threading
+import requests
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -35,7 +35,6 @@ from config import (
     SESSION_TIMEOUT,
     print_config
 )
-
 
 
 # ============================================================================
@@ -99,14 +98,14 @@ async def serve_frontend():
 
 
 # ============================================================================
-# ROUTES - VIDEO PREVIEW (STREAM COPY MODE)
+# ROUTES - VIDEO PREVIEW (DOWNLOAD-FIRST MODE)
 # ============================================================================
 
 @app.post("/start-preview")
 async def start_preview(request: Request):
     """
-    Start video preview - STREAM COPY MODE
-    Ultra-fast processing (5-10 seconds) but only works with H.264 videos
+    Start video preview - DOWNLOAD FIRST APPROACH
+    Downloads video to disk, then converts locally (much faster!)
     """
     
     # Parse request body
@@ -114,23 +113,13 @@ async def start_preview(request: Request):
         body = await request.json()
         video_url = body.get("url")
     except Exception as e:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid request body: {str(e)}"
-        )
+        raise HTTPException(status_code=400, detail=f"Invalid request body: {str(e)}")
     
     # Validate
     if not video_url:
-        raise HTTPException(
-            status_code=400,
-            detail="Missing 'url' parameter"
-        )
-    
+        raise HTTPException(status_code=400, detail="Missing 'url' parameter")
     if not video_url.startswith("http"):
-        raise HTTPException(
-            status_code=400,
-            detail="URL must start with http:// or https://"
-        )
+        raise HTTPException(status_code=400, detail="URL must start with http:// or https://")
     
     # Generate preview ID
     preview_id = f"preview_{uuid.uuid4().hex[:8]}"
@@ -142,23 +131,83 @@ async def start_preview(request: Request):
     # Paths
     playlist_path_str = os.path.join(preview_dir_str, "playlist.m3u8")
     segment_pattern = os.path.join(preview_dir_str, "segment%03d.ts")
+    local_video_path = os.path.join(preview_dir_str, "input_video.mp4")
     
     print(f"\n{'='*70}")
-    print(f"[Preview] NEW REQUEST (STREAM COPY MODE)")
+    print(f"[Preview] NEW REQUEST (DOWNLOAD-FIRST MODE)")
     print(f"{'='*70}")
     print(f"[Preview] ID: {preview_id}")
     print(f"[Preview] URL: {video_url}")
-    print(f"[Preview] Output: {os.path.abspath(preview_dir_str)}")
     print(f"{'='*70}\n")
     
-    # STREAM COPY - NO RE-ENCODING (super fast!)
+    # STEP 1: DOWNLOAD VIDEO FIRST
+    print(f"[Download] Starting download...")
+    print(f"[Download] Saving to: {local_video_path}\n")
+    
+    download_start = time.time()
+    try:
+        headers = {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        
+        response = requests.get(
+            video_url, 
+            headers=headers, 
+            stream=True,
+            timeout=60
+        )
+        response.raise_for_status()
+        
+        # Get file size
+        total_size = int(response.headers.get('content-length', 0))
+        if total_size > 0:
+            total_mb = total_size / (1024 * 1024)
+            print(f"[Download] File size: {total_mb:.1f} MB")
+        
+        # Download in chunks
+        downloaded = 0
+        last_log = 0
+        with open(local_video_path, 'wb') as f:
+            for chunk in response.iter_content(chunk_size=1024*1024):  # 1MB chunks
+                if chunk:
+                    f.write(chunk)
+                    downloaded += len(chunk)
+                    downloaded_mb = downloaded / (1024 * 1024)
+                    
+                    # Log every 10MB
+                    if downloaded_mb - last_log >= 10:
+                        if total_size > 0:
+                            pct = (downloaded / total_size) * 100
+                            print(f"[Download] {downloaded_mb:.0f}MB / {total_mb:.0f}MB ({pct:.0f}%)")
+                        else:
+                            print(f"[Download] {downloaded_mb:.0f}MB downloaded...")
+                        last_log = downloaded_mb
+        
+        download_time = int(time.time() - download_start)
+        file_size_mb = os.path.getsize(local_video_path) / (1024 * 1024)
+        print(f"\n[Download] ✅ Complete! {file_size_mb:.1f}MB in {download_time}s")
+        
+    except requests.exceptions.Timeout:
+        cleanup_preview_directory(Path(preview_dir_str))
+        raise HTTPException(status_code=500, detail="Download timeout - video URL too slow")
+    except requests.exceptions.RequestException as e:
+        cleanup_preview_directory(Path(preview_dir_str))
+        raise HTTPException(status_code=500, detail=f"Download failed: {str(e)}")
+    except Exception as e:
+        cleanup_preview_directory(Path(preview_dir_str))
+        raise HTTPException(status_code=500, detail=f"Download error: {str(e)}")
+    
+    # STEP 2: RUN FFMPEG ON LOCAL FILE (much faster!)
+    print(f"\n[FFmpeg] Starting conversion on LOCAL file...")
+    print(f"[FFmpeg] Mode: STREAM COPY (no re-encoding)")
+    print(f"[FFmpeg] Input: {local_video_path}\n")
+    
     ffmpeg_cmd = [
         "ffmpeg",
         "-hide_banner",
-        "-user_agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
         "-y",
-        "-i", video_url,
-        "-c", "copy",              # COPY - NO ENCODING!
+        "-i", local_video_path,   # LOCAL FILE (not URL!)
+        "-c", "copy",              # Copy streams (fast!)
         "-f", "hls",
         "-hls_time", "10",
         "-hls_list_size", "0",
@@ -166,12 +215,6 @@ async def start_preview(request: Request):
         "-start_number", "0",
         playlist_path_str
     ]
-    
-    print(f"[FFmpeg] Starting STREAM COPY mode...")
-    print(f"[FFmpeg] Mode: Copy streams (no re-encoding)")
-    print(f"[FFmpeg] Speed: 100x faster than encoding!")
-    print(f"[FFmpeg] Note: Only works with H.264/AAC videos")
-    print(f"[FFmpeg] Expected: 5-15 seconds for any length video\n")
     
     # Start FFmpeg
     try:
@@ -183,128 +226,80 @@ async def start_preview(request: Request):
             cwd=str(HLS_DIR)
         )
         print(f"[FFmpeg] Process started (PID: {ffmpeg_process.pid})\n")
-    except FileNotFoundError:
-        cleanup_preview_directory(Path(preview_dir_str))
-        raise HTTPException(
-            status_code=500,
-            detail="FFmpeg not found - please install FFmpeg"
-        )
     except Exception as e:
         cleanup_preview_directory(Path(preview_dir_str))
-        raise HTTPException(
-            status_code=500,
-            detail=f"Failed to start FFmpeg: {str(e)}"
-        )
+        raise HTTPException(status_code=500, detail=f"FFmpeg failed: {str(e)}")
     
-    # Wait for segments (should be FAST with copy!)
+    # STEP 3: WAIT FOR SEGMENTS
     start_time = time.time()
     segments_ready = False
-    min_segments = 2
-    max_wait = 45  # Only 45 seconds max (copy is fast!)
+    min_segments = 3      # Wait for 3 segments
+    max_wait = 60         # 60 seconds max
     last_count = 0
     
-    print(f"[Preview] Waiting for {min_segments} segments (max {max_wait}s)...\n")
+    print(f"[Preview] Waiting for {min_segments} segments...\n")
     
-    # Initial wait
-    time.sleep(3)
+    time.sleep(2)
     
-    # Check if crashed
     if ffmpeg_process.poll() is not None:
         stdout, stderr = ffmpeg_process.communicate()
-        print(f"[FFmpeg] ❌ Process exited early!")
+        print(f"[FFmpeg] ❌ Crashed!")
         print(f"[FFmpeg] Error: {stderr[:1000] if stderr else 'Unknown'}\n")
         cleanup_preview_directory(Path(preview_dir_str))
-        raise HTTPException(
-            status_code=500,
-            detail="FFmpeg crashed - video may not be H.264 compatible"
-        )
+        raise HTTPException(status_code=500, detail="FFmpeg failed")
     
-    # Wait loop
     while time.time() - start_time < max_wait:
         elapsed = int(time.time() - start_time)
         
-        # Check if FFmpeg finished
+        # Check if FFmpeg done
         if ffmpeg_process.poll() is not None:
             segment_files = glob.glob(os.path.join(preview_dir_str, "segment*.ts"))
             segment_count = len(segment_files)
-            
-            if segment_count >= min_segments:
+            if segment_count > 0:
                 segments_ready = True
-                print(f"\n[Preview] ✅ FFmpeg finished! {segment_count} total segments ({elapsed}s)")
-                print(f"[Preview] Total video: ~{segment_count * 10} seconds\n")
-                break
-            elif segment_count >= 1:
-                # At least 1 segment - use it
-                segments_ready = True
-                print(f"\n[Preview] ✅ FFmpeg finished! {segment_count} segment(s) ({elapsed}s)")
-                print(f"[Preview] Partial video available\n")
+                print(f"\n[Preview] ✅ FFmpeg done! {segment_count} segments ({elapsed}s)\n")
                 break
             else:
                 stdout, stderr = ffmpeg_process.communicate()
-                print(f"\n[Preview] ❌ FFmpeg finished but no segments")
-                print(f"[FFmpeg] Error: {stderr[:1000] if stderr else 'Unknown'}\n")
+                print(f"\n[FFmpeg] ❌ No segments!")
+                print(f"[FFmpeg] Error: {stderr[:1000]}\n")
                 cleanup_preview_directory(Path(preview_dir_str))
-                raise HTTPException(
-                    status_code=500,
-                    detail="FFmpeg failed - video may not be compatible"
-                )
+                raise HTTPException(status_code=500, detail="FFmpeg failed to create segments")
         
-        # Check for playlist and segments
         if os.path.exists(playlist_path_str):
             segment_files = glob.glob(os.path.join(preview_dir_str, "segment*.ts"))
             segment_count = len(segment_files)
             
-            # Show progress
             if segment_count != last_count and segment_count > 0:
                 print(f"[Preview] ✓ {segment_count} segment(s) ({elapsed}s)")
                 last_count = segment_count
             
-            # Check if enough
             if segment_count >= min_segments:
                 segments_ready = True
                 print(f"\n[Preview] ✅ {segment_count} segments ready! ({elapsed}s)")
-                print(f"[Preview] Starting playback")
                 print(f"[Preview] FFmpeg continues in background...\n")
                 break
         else:
-            # Show progress every 5 seconds
             if elapsed % 5 == 0 and elapsed > 0:
                 print(f"[Preview] Processing... ({elapsed}s)")
         
-        time.sleep(1.0)  # Check every second
+        time.sleep(1.0)
     
-    # Timeout check
     if not segments_ready:
-        print(f"\n[Preview] ❌ Timeout after {max_wait}s\n")
-        
-        # Check what we have
         segment_files = glob.glob(os.path.join(preview_dir_str, "segment*.ts"))
         segment_count = len(segment_files)
         
-        print(f"[Debug] Found {segment_count} segment(s)")
-        
         if segment_count >= 1:
-            # Use partial
             print(f"[Preview] ⚠️ Using {segment_count} partial segment(s)\n")
             segments_ready = True
         else:
-            # Complete failure
             try:
                 if ffmpeg_process.poll() is None:
                     ffmpeg_process.terminate()
-                stdout, stderr = ffmpeg_process.communicate(timeout=5)
-                print(f"[FFmpeg] Output: {stderr[:1000] if stderr else 'None'}\n")
             except:
-                try:
-                    ffmpeg_process.kill()
-                except:
-                    pass
-            
+                pass
             cleanup_preview_directory(Path(preview_dir_str))
-            raise HTTPException(
-                status_code=500,
-                detail="Timeout - video may not be H.264 compatible or too slow to download"
-            )
+            raise HTTPException(status_code=500, detail="Timeout - no segments created")
     
     # Count final segments
     segment_files = glob.glob(os.path.join(preview_dir_str, "segment*.ts"))
@@ -314,6 +309,7 @@ async def start_preview(request: Request):
     active_sessions[preview_id] = {
         "created_at": time.time(),
         "video_url": video_url,
+        "local_video": local_video_path,
         "ffmpeg_process": ffmpeg_process,
         "preview_dir": preview_dir_str,
         "segment_count": segment_count
@@ -324,9 +320,8 @@ async def start_preview(request: Request):
     print(f"{'='*70}")
     print(f"[Preview] ✅ PREVIEW READY!")
     print(f"{'='*70}")
-    print(f"[Preview] Playlist: {playlist_url}")
     print(f"[Preview] Segments: {segment_count} (~{segment_count * 10}s)")
-    print(f"[Preview] Status: {'Complete' if ffmpeg_process.poll() is not None else 'Processing continues...'}")
+    print(f"[Preview] Playlist: {playlist_url}")
     print(f"{'='*70}\n")
     
     return {
@@ -484,10 +479,10 @@ async def startup_event():
     print(f"\n💡 Test URLs:")
     print(f"   Small: https://www.w3schools.com/html/mov_bbb.mp4")
     print(f"   Big Buck Bunny: https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4")
-    print(f"\n⚡ STREAM COPY MODE:")
-    print(f"   No re-encoding - 100x faster!")
-    print(f"   Works with H.264/AAC videos")
-    print(f"   Should process in 5-15 seconds\n")
+    print(f"\n⚡ DOWNLOAD-FIRST MODE:")
+    print(f"   Downloads video first, then converts")
+    print(f"   Much more reliable!")
+    print(f"   Works with any video format\n")
 
 
 @app.on_event("shutdown")
