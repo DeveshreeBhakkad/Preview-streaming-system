@@ -98,15 +98,6 @@ FFMPEG_TIMEOUT = 90  # Wait max 30 seconds for first segments
 MIN_SEGMENTS_TO_START = 1  # Need at least 2 segments ready
 
 
-# ============================================================================
-# LOGGING & DEBUG
-# ============================================================================
-
-# Enable debug logging
-DEBUG = True  # Set to False in production
-
-# Log level
-LOG_LEVEL = "INFO"  # DEBUG, INFO, WARNING, ERROR
 
 
 # ============================================================================
