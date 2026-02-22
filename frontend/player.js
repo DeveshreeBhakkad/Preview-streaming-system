@@ -179,7 +179,12 @@ document.addEventListener("DOMContentLoaded", () => {
     setStatus(`❌ ${errorMessage}`);
   });
 
-  
+  // Cleanup on page unload
+  window.addEventListener("beforeunload", () => {
+    if (hlsInstance) {
+      hlsInstance.destroy();
+    }
+
     // Notify backend to cleanup
     if (currentPreviewId) {
       fetch("/end-preview", {
