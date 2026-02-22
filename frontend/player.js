@@ -1,13 +1,13 @@
 /**
- * Previewly Video Player
- * Handles video preview loading and playback
+ * Previewly - Video Player Script
+ * Handles HLS video playback with progressive loading
  */
 
-// Wait for page to fully load
+// Wait for DOM to be ready
 document.addEventListener("DOMContentLoaded", () => {
   console.log("✅ Player.js loaded successfully");
 
-  // Get HTML elements by their IDs
+  // Get DOM elements
   const urlInput = document.getElementById("urlInput");
   const startBtn = document.getElementById("startBtn");
   const video = document.getElementById("video");
@@ -18,281 +18,181 @@ document.addEventListener("DOMContentLoaded", () => {
   let hlsInstance = null;
   let currentPreviewId = null;
 
-  /**
-   * Update status message for user
-   */
+  // Helper function to update status message
   function setStatus(message) {
-    console.log(`[Status] ${message}`);
     statusText.textContent = message;
   }
 
-  /**
-   * Validate all required elements exist
-   */
+  // Verify all elements exist
   if (!urlInput || !startBtn || !video || !videoWrapper || !statusText) {
-    console.error("❌ Required HTML elements not found!");
-    console.error("Missing:", {
-      urlInput: !!urlInput,
-      startBtn: !!startBtn,
-      video: !!video,
-      videoWrapper: !!videoWrapper,
-      statusText: !!statusText
-    });
-    alert("Error: Page elements not found. Please refresh.");
+    console.error("❌ Some HTML elements not found!");
     return;
   }
-
   console.log("✅ All HTML elements found");
 
-  /**
-   * Main function: Start video preview
-   */
+  // Button click handler
   startBtn.addEventListener("click", async () => {
-    console.log("🎬 Preview button clicked");
+    const videoUrl = urlInput.value.trim();
 
-    // Get URL from input box
-    const videoUrl = urlInput.value?.trim();
-
-    // Validate URL exists
+    // Validate URL
     if (!videoUrl) {
-      setStatus("⚠️ Please paste a video URL");
+      setStatus("❌ Please enter a video URL");
       return;
     }
 
-    // Validate URL format
     if (!videoUrl.startsWith("http://") && !videoUrl.startsWith("https://")) {
-      setStatus("⚠️ Invalid URL - must start with http:// or https://");
+      setStatus("❌ URL must start with http:// or https://");
       return;
     }
 
-    console.log(`📹 Video URL: ${videoUrl}`);
-
-    // Show loading message
+    // Update UI
     setStatus("⏳ Preparing instant preview...");
-
-    // Hide video player while loading
     videoWrapper.classList.add("hidden");
 
-    // Cleanup previous HLS instance if exists
+    // Cleanup previous HLS instance
     if (hlsInstance) {
-      console.log("🧹 Cleaning up previous HLS instance");
       hlsInstance.destroy();
       hlsInstance = null;
     }
 
     try {
-      // Send request to backend to start preview
+      // Send request to backend
       console.log("📤 Sending request to backend...");
-      
       const response = await fetch("/start-preview", {
         method: "POST",
         headers: {
-          "Content-Type": "application/json"
+          "Content-Type": "application/json",
         },
-        body: JSON.stringify({
-          url: videoUrl
-        })
+        body: JSON.stringify({ url: videoUrl }),
       });
 
-      console.log(`📥 Backend response: ${response.status}`);
-
-      // Check if request was successful
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.detail || "Failed to start preview");
-      }
-
-      // Parse response data
       const data = await response.json();
-      console.log("✅ Preview data received:", data);
 
-      // Validate response has playlist URL
-      if (!data.playlist_url) {
-        throw new Error("No playlist URL in response");
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to start preview");
       }
 
-      // Store preview ID for later
+      console.log("✅ Backend response:", data);
+
+      // Get playlist URL
+      const playlistUrl = data.playlist_url;
       currentPreviewId = data.preview_id;
 
-      // Show video player
+      // Show video wrapper
       videoWrapper.classList.remove("hidden");
 
-      // Initialize HLS video player
-      console.log("🎥 Initializing HLS player...");
-      initializeHLSPlayer(data.playlist_url);
+      // Initialize HLS player
+      initializeHLSPlayer(playlistUrl);
 
+      setStatus(`✅ Preview ready — press play ▶️`);
     } catch (error) {
-      console.error("❌ Error starting preview:", error);
-      
-      // Show user-friendly error message
-      if (error.message.includes("fetch")) {
-        setStatus("❌ Cannot connect to server. Is it running?");
-      } else if (error.message.includes("timeout")) {
-        setStatus("❌ Request timeout - video may be too large");
-      } else {
-        setStatus(`❌ Error: ${error.message}`);
-      }
+      console.error("❌ Error:", error);
+      setStatus(`❌ Error: ${error.message}`);
     }
   });
 
-  /**
-   * Initialize HLS.js video player
-   */
+  // Initialize HLS.js player
   function initializeHLSPlayer(playlistUrl) {
-    console.log(`🎬 Loading playlist: ${playlistUrl}`);
+    console.log("🎬 Initializing HLS player...");
+    console.log("📺 Playlist URL:", playlistUrl);
 
-    // Check if HLS.js is supported
-    if (window.Hls && Hls.isSupported()) {
-      console.log("✅ HLS.js is supported");
-
-      // Create new HLS instance
+    if (Hls.isSupported()) {
+      // Create HLS instance
       hlsInstance = new Hls({
         debug: false,
         enableWorker: true,
         lowLatencyMode: false,
-        backBufferLength: 30
       });
 
       // Load the playlist
       hlsInstance.loadSource(playlistUrl);
-
-      // Attach to video element
       hlsInstance.attachMedia(video);
 
-      // Event: Manifest (playlist) loaded successfully
+      // Handle HLS events
       hlsInstance.on(Hls.Events.MANIFEST_PARSED, () => {
-        console.log("✅ HLS manifest parsed successfully");
-        setStatus("✅ Preview ready — press play ▶️");
+        console.log("✅ Playlist loaded successfully");
+        setStatus("✅ Video ready — press play ▶️");
       });
 
-      // Event: Error occurred
       hlsInstance.on(Hls.Events.ERROR, (event, data) => {
-        console.error("❌ HLS error:", data);
+        console.error("❌ HLS Error:", data);
 
         if (data.fatal) {
           switch (data.type) {
             case Hls.ErrorTypes.NETWORK_ERROR:
-              console.error("Fatal network error");
-              setStatus("❌ Network error loading video");
-              
-              // Try to recover
-              console.log("🔄 Attempting to recover...");
+              console.log("🔄 Network error, attempting to recover...");
               hlsInstance.startLoad();
               break;
-
             case Hls.ErrorTypes.MEDIA_ERROR:
-              console.error("Fatal media error");
-              setStatus("❌ Media error - attempting recovery...");
-              
-              // Try to recover
+              console.log("🔄 Media error, attempting to recover...");
               hlsInstance.recoverMediaError();
               break;
-
             default:
-              console.error("Fatal error - cannot recover");
-              setStatus("❌ Playback error");
+              console.error("💥 Fatal error, cannot recover");
+              setStatus("❌ Playback error occurred");
               hlsInstance.destroy();
               break;
           }
         }
       });
 
-      // Event: Level (quality) loaded
       hlsInstance.on(Hls.Events.LEVEL_LOADED, (event, data) => {
-        console.log(`📊 Level loaded: ${data.details.totalduration}s duration`);
+        console.log(`📊 Loaded ${data.details.fragments.length} segments`);
       });
-
     } else if (video.canPlayType("application/vnd.apple.mpegurl")) {
       // Native HLS support (Safari)
-      console.log("✅ Native HLS support detected (Safari)");
-      
+      console.log("🍎 Using native HLS support");
       video.src = playlistUrl;
-      
-      video.addEventListener("loadedmetadata", () => {
-        console.log("✅ Video metadata loaded");
-        setStatus("✅ Preview ready — press play ▶️");
-      });
-
-      video.addEventListener("error", (e) => {
-        console.error("❌ Video error:", e);
-        setStatus("❌ Error loading video");
-      });
-
+      setStatus("✅ Video ready — press play ▶️");
     } else {
-      // HLS not supported
       console.error("❌ HLS not supported in this browser");
-      setStatus("❌ HLS not supported in this browser");
-      alert("Your browser doesn't support HLS playback. Please use Chrome, Firefox, or Safari.");
+      setStatus("❌ Your browser doesn't support HLS playback");
     }
   }
 
-  /**
-   * Video event handlers
-   */
-
-  // When video starts playing
+  // Video event listeners
   video.addEventListener("play", () => {
-    console.log("▶️ Video playback started");
-    setStatus("▶️ Playing preview...");
+    console.log("▶️ Video playing");
+    setStatus("▶️ Playing...");
   });
 
-  // When video is paused
   video.addEventListener("pause", () => {
     console.log("⏸️ Video paused");
     setStatus("⏸️ Paused");
   });
 
-  // When video ends
   video.addEventListener("ended", () => {
-    console.log("🏁 Video ended");
-    setStatus("🏁 Preview ended");
+    console.log("✅ Video ended");
+    setStatus("✅ Video finished");
   });
 
-  // When video has an error
   video.addEventListener("error", (e) => {
-    console.error("❌ Video element error:", e);
+    console.error("❌ Video error:", e);
+    const errorCode = video.error ? video.error.code : "unknown";
+    const errorMessage = {
+      1: "Video loading aborted",
+      2: "Network error while loading video",
+      3: "Video decoding failed",
+      4: "Video format not supported",
+    }[errorCode] || "Unknown video error";
     
-    const error = video.error;
-    if (error) {
-      let errorMessage = "Unknown error";
-      
-      switch (error.code) {
-        case MediaError.MEDIA_ERR_ABORTED:
-          errorMessage = "Playback aborted";
-          break;
-        case MediaError.MEDIA_ERR_NETWORK:
-          errorMessage = "Network error loading video";
-          break;
-        case MediaError.MEDIA_ERR_DECODE:
-          errorMessage = "Video decoding error";
-          break;
-        case MediaError.MEDIA_ERR_SRC_NOT_SUPPORTED:
-          errorMessage = "Video format not supported";
-          break;
-      }
-      
-      setStatus(`❌ ${errorMessage}`);
-    }
+    setStatus(`❌ ${errorMessage}`);
   });
 
-  /**
-   * Cleanup when page is closed
-   */
+  // Cleanup on page unload
   window.addEventListener("beforeunload", () => {
-    console.log("🧹 Page closing - cleaning up...");
-    
     if (hlsInstance) {
       hlsInstance.destroy();
     }
-    
-    // Optionally notify backend to cleanup
+
+    // Notify backend to cleanup
     if (currentPreviewId) {
       fetch("/end-preview", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ preview_id: currentPreviewId }),
-        keepalive: true
-      }).catch(err => console.log("Cleanup notification failed:", err));
+        keepalive: true,
+      }).catch((err) => console.log("Cleanup notification failed:", err));
     }
   });
 
