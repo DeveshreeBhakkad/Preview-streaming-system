@@ -23,10 +23,7 @@ document.addEventListener("DOMContentLoaded", () => {
     statusText.textContent = message;
   }
 
-  // Verify all elements exist
-  if (!urlInput || !startBtn || !video || !videoWrapper || !statusText) {
-    console.error("❌ Some HTML elements not found!");
-    return;
+  
   }
   console.log("✅ All HTML elements found");
 
