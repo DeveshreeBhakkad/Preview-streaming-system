@@ -469,32 +469,6 @@ def cleanup_preview_directory(preview_dir: Path):
 # STARTUP & SHUTDOWN
 # ============================================================================
 
-@app.on_event("startup")
-async def startup_event():
-    """Server startup"""
-    print("\n")
-    print_config()
-    print("🚀 Server started!")
-    print(f"📱 Open: http://{SERVER_HOST}:{SERVER_PORT}")
-    print(f"\n💡 Test URLs:")
-    print(f"   Small: https://www.w3schools.com/html/mov_bbb.mp4")
-    print(f"   Big Buck Bunny: https://archive.org/download/BigBuckBunny_124/Content/big_buck_bunny_720p_surround.mp4")
-    print(f"\n⚡ DOWNLOAD-FIRST MODE:")
-    print(f"   Downloads video first, then converts")
-    print(f"   Much more reliable!")
-    print(f"   Works with any video format\n")
-
-
-@app.on_event("shutdown")
-async def shutdown_event():
-    """Server shutdown"""
-    print("\n[Shutdown] Cleaning up...")
-    
-    session_ids = list(active_sessions.keys())
-    for preview_id in session_ids:
-        cleanup_session(preview_id)
-    
-    print("[Shutdown] Done\n")
 
 
 # ============================================================================
