@@ -361,14 +361,6 @@ async def end_preview(request: Request):
 # ROUTES - DEBUG
 # ============================================================================
 
-@app.get("/health")
-async def health_check():
-    """Health check"""
-    return {
-        "status": "healthy",
-        "active_sessions": len(active_sessions),
-        "timestamp": time.time()
-    }
 
 
 @app.get("/debug/sessions")
