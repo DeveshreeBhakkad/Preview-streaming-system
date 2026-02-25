@@ -88,6 +88,9 @@ SESSION_TIMEOUT = 3600  # 1 hour
 # VALIDATION
 # ============================================================================
 
+# Validate paths
+assert FRONTEND_DIR.exists(), f"Frontend directory not found: {FRONTEND_DIR}"
+assert HLS_DIR.exists(), f"HLS directory not found: {HLS_DIR}"
 
 
 # ============================================================================
