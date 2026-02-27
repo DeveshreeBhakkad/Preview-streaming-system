@@ -140,24 +140,7 @@ async def start_preview(request: Request):
     print(f"[Preview] URL: {video_url}")
     print(f"{'='*70}\n")
     
-    # STEP 1: DOWNLOAD VIDEO FIRST
-    print(f"[Download] Starting download...")
-    print(f"[Download] Saving to: {local_video_path}\n")
     
-    download_start = time.time()
-    try:
-        headers = {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        }
-        
-        response = requests.get(
-            video_url, 
-            headers=headers, 
-            stream=True,
-            timeout=60
-        )
-        response.raise_for_status()
-        
         # Get file size
         total_size = int(response.headers.get('content-length', 0))
         if total_size > 0:
