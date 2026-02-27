@@ -202,7 +202,19 @@ async def start_preview(request: Request):
     print(f"[FFmpeg] Mode: STREAM COPY (no re-encoding)")
     print(f"[FFmpeg] Input: {local_video_path}\n")
     
-    
+    ffmpeg_cmd = [
+        "ffmpeg",
+        "-hide_banner",
+        "-y",
+        "-i", local_video_path,   # LOCAL FILE (not URL!)
+        "-c", "copy",              # Copy streams (fast!)
+        "-f", "hls",
+        "-hls_time", "10",
+        "-hls_list_size", "0",
+        "-hls_segment_filename", segment_pattern,
+        "-start_number", "0",
+        playlist_path_str
+    ]
     
     # Start FFmpeg
     try:
