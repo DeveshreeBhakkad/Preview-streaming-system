@@ -32,6 +32,9 @@ The system focuses on how real streaming platforms work internally buffering, ch
 
 ---
 
+## 🛠️ Project Status
+
+This project is being developed incrementally as a portfolio-grade system to understand real-world streaming architectures.
 
 ---
 
