@@ -76,7 +76,25 @@ app.mount("/hls", StaticFiles(directory=str(HLS_DIR)), name="hls")
 active_sessions: Dict[str, dict] = {}
 
 
+# ============================================================================
+# ROUTES - FRONTEND
+# ============================================================================
 
+@app.get("/")
+async def serve_frontend():
+    """Serve the main frontend page"""
+    index_path = FRONTEND_DIR / "index.html"
+    
+    if not index_path.exists():
+        return JSONResponse(
+            status_code=404,
+            content={
+                "error": "Frontend not found",
+                "message": "index.html not found"
+            }
+        )
+    
+    return FileResponse(index_path)
 
 
 # ============================================================================
