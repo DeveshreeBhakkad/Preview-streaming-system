@@ -97,3 +97,15 @@ assert HLS_DIR.exists(), f"HLS directory not found: {HLS_DIR}"
 # UTILITY FUNCTIONS
 # ============================================================================
 
+def print_config():
+    """Print configuration summary"""
+    print("=" * 60)
+    print("🎬 PREVIEWLY - VIDEO PREVIEW SYSTEM")
+    print("=" * 60)
+    print(f"✓ Server: http://{SERVER_HOST}:{SERVER_PORT}")
+    print(f"✓ Segment Duration: {SEGMENT_DURATION} seconds")
+    print(f"✓ Backward Buffer: {BACKWARD_BUFFER_MINUTES} min ({BACKWARD_BUFFER_SEGMENTS} segments)")
+    print(f"✓ Forward Buffer: {FORWARD_BUFFER_MINUTES} min ({FORWARD_BUFFER_SEGMENTS} segments)")
+    print(f"✓ Total Active: {TOTAL_ACTIVE_SEGMENTS} segments per session")
+    print(f"✓ Rewind Control: ENABLED")
+    print("=" * 60)
