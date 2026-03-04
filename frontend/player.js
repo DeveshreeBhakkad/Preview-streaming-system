@@ -14,13 +14,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const videoWrapper = document.getElementById("videoWrapper");
   const statusText = document.getElementById("status");
 
-  // Global variables
-  let hlsInstance = null;
-  let currentPreviewId = null;
-
-  // Helper function to update status message
-  function setStatus(message) {
-    statusText.textContent = message;
+  
   }
 
   // Verify all elements exist
